@@ -5,6 +5,8 @@ export interface LaundryService {
   name: string;
   description: string;
   price: number;
+  category?: string;
+  duration?: string;
   icon?: string;
   isActive?: boolean;
 }
@@ -26,6 +28,8 @@ export interface CreateServicePayload {
   name: string;
   price: number;
   description: string;
+  category?: string;
+  duration?: string;
   icon?: string;
 }
 
