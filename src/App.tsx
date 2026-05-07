@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { UsersPage } from './pages/UsersPage';
 import { ServicesPage } from './pages/ServicesPage';
+import { OrdersPage } from './pages/OrdersPage';
 import './App.css';
 
 function App() {
@@ -32,6 +33,15 @@ function App() {
             }
           />
           
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <OrdersPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/services"
             element={

@@ -111,6 +111,26 @@ export const Sidebar: React.FC = () => {
           </svg>
           {isOpen && <span className="ml-4">Services</span>}
         </Link>
+
+        <Link
+          to="/orders"
+          className="flex items-center px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors group"
+        >
+          <svg
+            className="w-6 h-6 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5h6m-6 4h6m-7 4h8m-9 8h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            />
+          </svg>
+          {isOpen && <span className="ml-4">Orders</span>}
+        </Link>
       </nav>
 
       {/* Logout Button */}
