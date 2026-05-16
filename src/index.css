@@ -1,39 +1,62 @@
-
 @import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand: #1305B5;
+  --color-brand-hover: #0F048A;
+}
 
 @layer base {
   * {
-    @apply m-0 p-0 box-border;
+    @apply m-0 p-0 box-border font-sans;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-[#F4F6F9] text-slate-900 transition-colors duration-300;
   }
 
-  button {
-    @apply transition-colors duration-200;
+  .dark body {
+    @apply bg-[#0C0C0C] text-slate-100;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium;
+  .premium-card {
+    @apply bg-white dark:bg-[#1A1A1A] rounded-xl shadow-sm p-6 border border-slate-200 
+           dark:border-white/5 transition-all duration-300;
   }
 
-  .btn-secondary {
-    @apply px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium;
+  .btn-brand {
+    @apply px-5 py-2 bg-brand hover:bg-brand-hover text-white rounded-lg 
+           font-semibold transition-all duration-200 active:scale-95 flex items-center gap-2;
   }
 
-  .btn-danger {
-    @apply px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium;
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 
+           text-slate-400 hover:text-white hover:bg-white/5;
   }
 
-  .card {
-    @apply bg-white rounded-lg shadow-md p-6;
+  .nav-item-active {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg bg-brand text-white shadow-lg shadow-brand/20;
   }
 
-  .input-field {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  .input-brand {
+    @apply w-full px-4 py-2.5 bg-white dark:bg-[#1A1A1A] border border-slate-200 
+           dark:border-white/5 rounded-lg focus:outline-none focus:ring-1 
+           focus:ring-brand focus:border-brand transition-all text-sm;
   }
 }
 
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}

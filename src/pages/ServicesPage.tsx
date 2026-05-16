@@ -5,6 +5,8 @@ import { useDebounce } from '../hooks/useDebounce';
 import { ServiceTableRow } from '../components/ServiceTableRow';
 import { Pagination } from '../components/Pagination';
 import type { LaundryService } from '../api/servicesApi';
+import { Plus, Search, X, Loader2, PackageOpen } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const ServicesPage: React.FC = () => {
   const { services, total, isLoading, error, fetchServices, addService } = useServicesStore();
@@ -19,14 +21,13 @@ export const ServicesPage: React.FC = () => {
   const [newService, setNewService] = useState({ name: '', price: 100, description: '', category: '', duration: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Use debounced search term to avoid calling endpoint on every keystroke
   useEffect(() => {
     fetchServices({ search: debouncedSearchTerm, page, limit });
   }, [debouncedSearchTerm, page, limit, fetchServices]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setPage(1); // Reset to page 1 on new search
+    setPage(1);
   };
 
   const handleAddService = async (e: React.FormEvent) => {
@@ -36,9 +37,9 @@ export const ServicesPage: React.FC = () => {
       await addService({ ...newService, price: Number(newService.price) });
       setIsAddModalOpen(false);
       setNewService({ name: '', price: 100, description: '', category: '', duration: '' });
-      setPage(1); // Reset to page 1 to see new service
+      setPage(1);
     } catch (err) {
-      alert('Failed to add service');
+      // Show error in UI
     } finally {
       setIsSubmitting(false);
     }
@@ -47,101 +48,94 @@ export const ServicesPage: React.FC = () => {
   const totalPages = Math.ceil(total / limit) || 1;
 
   const handleEdit = (service: LaundryService) => {
-    // Placeholder for edit functionality
     console.log('Edit service', service);
   };
 
   const handleDelete = (id: string) => {
-    // Placeholder for delete functionality
     console.log('Delete service', id);
   };
 
   return (
     <AdminLayout>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Services</h1>
-          <p className="text-gray-500 mt-1">Manage all your laundry services</p>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Services</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Configure and manage laundry offerings</p>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-indigo-600 transition-colors" />
             <input
               type="text"
-              placeholder="Search here..."
+              placeholder="Search services..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm"
+              className="pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full md:w-64 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all shadow-sm"
             />
           </div>
-          <button className="btn-primary flex items-center gap-2 shadow-md shadow-blue-500/20" onClick={() => setIsAddModalOpen(true)}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-            Add New Service
+          <button 
+            className="btn-premium whitespace-nowrap" 
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus size={20} />
+            <span>Add Service</span>
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-100 text-red-700 border border-red-200 rounded-lg">
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-4 bg-red-50 dark:bg-red-500/10 text-red-600 border border-red-100 dark:border-red-500/20 rounded-2xl font-semibold flex items-center gap-3"
+        >
+          <X size={20} />
           {error}
-        </div>
+        </motion.div>
       )}
 
-      {/* Services Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Services Content */}
+      <div className="premium-card !p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-white">
-              <tr>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Service
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Service Details</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Category</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Base Price</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Duration</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {isLoading && services.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    Loading services...
+                  <td colSpan={6} className="px-6 py-20 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                      <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Fetching Services...</p>
+                    </div>
                   </td>
                 </tr>
               ) : services.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                     <div className="flex flex-col items-center justify-center">
-                       <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                       </svg>
-                       <h3 className="text-lg font-medium text-gray-900">No services found</h3>
-                       <p className="text-gray-500 mt-1">Get started by creating a new service.</p>
-                       <button 
-                         onClick={() => setIsAddModalOpen(true)}
-                         className="mt-4 px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-lg font-medium hover:bg-blue-50"
-                       >
-                         Add Service
-                       </button>
-                     </div>
+                  <td colSpan={6} className="px-6 py-24 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-full">
+                        <PackageOpen size={48} className="text-slate-300" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">No services found</h3>
+                      <p className="text-slate-500 max-w-xs mx-auto">It seems you haven't added any services yet. Create your first offering to get started.</p>
+                      <button 
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="btn-ghost mt-2"
+                      >
+                        Create Service
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -159,120 +153,131 @@ export const ServicesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Pagination component handles whether to show itself based on totalItems */}
       {!isLoading && services.length > 0 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalItems={total}
-          itemsPerPage={limit}
-          onPageChange={setPage}
-        />
+        <div className="mt-8 flex justify-center">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={total}
+            itemsPerPage={limit}
+            onPageChange={setPage}
+          />
+        </div>
       )}
 
       {/* Add Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-            <div className="flex justify-between items-center mb-5 border-b border-gray-100 pb-4">
-              <h2 className="text-xl font-bold text-gray-900">Add New Service</h2>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddService} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Wash & Fold"
-                  className="input-field"
-                  value={newService.name}
-                  onChange={(e) => setNewService({ ...newService, name: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-xl shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
+              <div className="flex justify-between items-center mb-8">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Price</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">₹</span>
-                    </div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Create New Service</h2>
+                  <p className="text-slate-500 text-sm mt-1">Define the details for your new laundry service</p>
+                </div>
+                <button 
+                  onClick={() => setIsAddModalOpen(false)} 
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <form onSubmit={handleAddService} className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Name</label>
                     <input
-                      type="number"
+                      type="text"
                       required
-                      min="0"
-                      step="0.01"
-                      className="input-field pl-7"
-                      value={newService.price}
-                      onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
+                      placeholder="e.g. Premium Silk Wash"
+                      className="input-premium"
+                      value={newService.name}
+                      onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Base Price (₹)</label>
+                      <input
+                        type="number"
+                        required
+                        className="input-premium"
+                        value={newService.price}
+                        onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Category</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Ironing"
+                        className="input-premium"
+                        value={newService.category}
+                        onChange={(e) => setNewService({ ...newService, category: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Estimated Duration</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 24 - 48 hrs"
+                      className="input-premium"
+                      value={newService.duration}
+                      onChange={(e) => setNewService({ ...newService, duration: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Description</label>
+                    <textarea
+                      required
+                      placeholder="Briefly describe what this service includes..."
+                      className="input-premium h-24 resize-none"
+                      value={newService.description}
+                      onChange={(e) => setNewService({ ...newService, description: e.target.value })}
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Ironing"
-                    className="input-field"
-                    value={newService.category}
-                    onChange={(e) => setNewService({ ...newService, category: e.target.value })}
-                  />
+                
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="flex-1 btn-ghost"
+                    disabled={isSubmitting}
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 btn-premium justify-center"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Service'}
+                  </button>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Duration</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 24 - 48 hrs"
-                  className="input-field"
-                  value={newService.duration}
-                  onChange={(e) => setNewService({ ...newService, duration: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
-                <textarea
-                  required
-                  placeholder="Describe the service..."
-                  className="input-field"
-                  rows={2}
-                  value={newService.description}
-                  onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                ></textarea>
-              </div>
-              
-              <div className="flex gap-3 pt-4 border-t border-gray-100 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-semibold transition-colors"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold shadow-md shadow-blue-500/30 transition-colors disabled:opacity-70 flex justify-center items-center gap-2"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting && (
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  )}
-                  {isSubmitting ? 'Adding...' : 'Add Service'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </AdminLayout>
   );
 };

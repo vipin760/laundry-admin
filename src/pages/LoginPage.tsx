@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { 
+  Zap, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,109 +26,98 @@ export const LoginPage: React.FC = () => {
     setError('');
     setIsLoading(true);
 
-    // Validate
     if (!email || !password) {
       setError('Please fill in all fields');
       setIsLoading(false);
       return;
     }
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email');
-      setIsLoading(false);
-      return;
-    }
-
-    // API login
     try {
       await login(email, password);
       navigate('/home');
-    } catch {
-      setError('Login failed. Please try again.');
+    } catch (err: any) {
+      setError('Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="card shadow-lg">
+    <div className="min-h-screen bg-[#F4F6F9] dark:bg-[#0C0C0C] flex items-center justify-center p-6 transition-colors">
+      {/* Decorative Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-brand/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-brand/10 rounded-full blur-3xl"></div>
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md relative z-10"
+      >
+        <div className="premium-card !p-10">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-lg mb-4">
-              <svg
-                className="w-8 h-8 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-brand rounded-2xl mb-6 shadow-xl shadow-brand/20">
+              <Zap className="text-white w-7 h-7 fill-current" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Login</h1>
-            <p className="text-gray-600 mt-2">Sign in to your account</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Veltrox CRM</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm font-medium">Sign in to manage your laundry empire</p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400 text-sm font-bold"
+            >
+              <AlertCircle size={18} />
+              {error}
+            </motion.div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 ml-1">
                 Email Address
               </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-field"
-                placeholder="admin@example.com"
-                disabled={isLoading}
-              />
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-brand transition-colors" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-brand !pl-10"
+                  placeholder="admin@example.com"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 ml-1">
                 Password
               </label>
-              <div className="relative">
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-brand transition-colors" />
                 <input
-                  id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pr-10"
+                  className="input-brand !pl-10 !pr-10"
                   placeholder="••••••••"
                   disabled={isLoading}
+                  required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 >
-                  {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                    </svg>
-                  )}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -126,22 +125,38 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn-brand py-3 justify-center shadow-lg shadow-brand/20 mt-2"
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
             </button>
           </form>
 
           {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-gray-700 mb-2">
-              <strong>Demo Credentials:</strong>
-            </p>
-            <p className="text-sm text-gray-600">Email: admin@example.com</p>
-            <p className="text-sm text-gray-600">Password: any value</p>
+          <div className="mt-10 p-5 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-white/5">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle size={14} className="text-brand" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                Demo Credentials
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Email:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200">admin@example.com</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">Password:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200">admin123</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+        
+        {/* Footer Link */}
+        <p className="text-center mt-8 text-xs text-slate-400 font-medium">
+          Forgot your password? <span className="text-brand hover:underline cursor-pointer">Contact Support</span>
+        </p>
+      </motion.div>
     </div>
   );
 };
