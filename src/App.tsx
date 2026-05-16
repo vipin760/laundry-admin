@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage';
 import { UsersPage } from './pages/UsersPage';
 import { ServicesPage } from './pages/ServicesPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { MessagesPage } from './pages/MessagesPage';
 import './App.css';
 
 import { ThemeProvider } from './context/ThemeContext';
@@ -50,6 +51,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <OrdersPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/messages"
+              element={
+                <ProtectedRoute>
+                  <MessagesPage />
                 </ProtectedRoute>
               }
             />

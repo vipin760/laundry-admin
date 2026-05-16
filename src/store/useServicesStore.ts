@@ -13,7 +13,7 @@ interface ServicesState {
   addService: (payload: CreateServicePayload) => Promise<void>;
 }
 
-export const useServicesStore = create<ServicesState>((set, get) => ({
+export const useServicesStore = create<ServicesState>((set) => ({
   services: [],
   total: 0,
   isLoading: false,

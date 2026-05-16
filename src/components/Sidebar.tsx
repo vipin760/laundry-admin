@@ -9,7 +9,8 @@ import {
   Users2,
   Package,
   ChevronRight,
-  User
+  User,
+  MessageCircle
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -45,6 +46,12 @@ export const Sidebar: React.FC = () => {
       title: 'Sales',
       items: [
         { to: '/orders', icon: Package, label: 'Orders' },
+      ]
+    },
+    {
+      title: 'Support',
+      items: [
+        { to: '/messages', icon: MessageCircle, label: 'Messages' },
       ]
     }
   ];

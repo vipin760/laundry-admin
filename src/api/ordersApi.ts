@@ -10,6 +10,7 @@ export type OrderStatus =
 
 export interface OrderItem {
   serviceId: string;
+  serviceName?: string;
   name: string;
   price: number;
   quantity: number;
