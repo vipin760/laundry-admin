@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Package, Clock, CheckCircle2, Truck, AlertCircle, ChevronDown, MoreVertical, PackageCheck } from 'lucide-react';
 import type { Order, OrderStatus } from '../api/ordersApi';
-import { Badge } from './Badge';
 
 interface OrderTableRowProps {
   order: Order;
@@ -58,7 +57,7 @@ export const OrderTableRow: React.FC<OrderTableRowProps> = ({ order, onUpdateSta
           {order.items.length} {order.items.length === 1 ? 'Service' : 'Services'}
         </div>
         <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate max-w-[150px]">
-          {order.items.map(i => i.serviceName || 'Laundy').join(', ')}
+          {order.items.map(i => i.serviceName || i.name || 'Laundry').join(', ')}
         </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">

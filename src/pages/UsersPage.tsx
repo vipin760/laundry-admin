@@ -3,7 +3,6 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { useUsersStore } from '../store/useUsersStore';
 import { UserTableRow } from '../components/UserTableRow';
 import { Search, UserPlus, Loader2, Users } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export const UsersPage: React.FC = () => {
   const { users, isLoading, error, fetchUsers, blockUser, unblockUser } = useUsersStore();

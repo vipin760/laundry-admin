@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Shield, ShieldOff, MoreVertical, Mail, Calendar } from 'lucide-react';
+import { Shield, ShieldOff, MoreVertical, Mail, Calendar } from 'lucide-react';
 import { Badge } from './Badge';
 
 interface UserTableRowProps {

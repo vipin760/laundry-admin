@@ -3,7 +3,6 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { useOrdersStore } from '../store/useOrdersStore';
 import { OrderTableRow } from '../components/OrderTableRow';
 import { Search, Filter, Loader2, PackageX, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 export const OrdersPage: React.FC = () => {
   const { orders, total, isLoading, error, fetchOrders, updateStatus } = useOrdersStore();
