@@ -10,7 +10,8 @@ import {
   Package,
   ChevronRight,
   User,
-  MessageCircle
+  MessageCircle,
+  MapPin
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -34,6 +35,7 @@ export const Sidebar: React.FC = () => {
       items: [
         { to: '/users', icon: Users, label: 'Users' },
         { to: '/services', icon: Zap, label: 'Services' },
+        { to: '/locations', icon: MapPin, label: 'Locations' },
       ]
     },
     {
