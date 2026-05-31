@@ -10,6 +10,13 @@ export type DayOfWeek =
   | 'sunday';
 
 export type ServiceAreaType = 'radius' | 'polygon';
+export type PaymentMethod =
+  | 'upi'
+  | 'credit_card'
+  | 'debit_card'
+  | 'net_banking'
+  | 'wallet'
+  | 'cash_on_delivery';
 
 export interface DaySchedule {
   day: DayOfWeek;
@@ -48,6 +55,7 @@ export interface LocationEntity {
   dailyBookingLimit: number;
   pricingProfileKey?: string;
   supportedServiceIds: string[];
+  enabledPaymentMethods: PaymentMethod[];
   createdAt: string;
   updatedAt: string;
 }
@@ -79,6 +87,7 @@ export interface CreateOrUpdateLocationPayload {
   dailyBookingLimit: number;
   pricingProfileKey?: string;
   supportedServiceIds?: string[];
+  enabledPaymentMethods?: PaymentMethod[];
 }
 
 export interface ListLocationsResponse {

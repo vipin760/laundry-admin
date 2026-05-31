@@ -5,7 +5,7 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import {
   defaultWorkingSchedule,
 } from '../api/locationsApi';
-import type { DaySchedule, LocationEntity, ServiceAreaType, TimeSlot } from '../api/locationsApi';
+import type { DaySchedule, LocationEntity, PaymentMethod, ServiceAreaType, TimeSlot } from '../api/locationsApi';
 import { useLocationsStore } from '../store/useLocationsStore';
 
 type LocationFormState = {
@@ -21,6 +21,7 @@ type LocationFormState = {
   timezone: string;
   dailyBookingLimit: string;
   pricingProfileKey: string;
+  enabledPaymentMethods: PaymentMethod[];
   workingSchedule: DaySchedule[];
   pickupSlotsText: string;
   deliverySlotsText: string;
@@ -39,6 +40,7 @@ const emptyForm = (): LocationFormState => ({
   timezone: 'Asia/Kolkata',
   dailyBookingLimit: '200',
   pricingProfileKey: '',
+  enabledPaymentMethods: ['upi', 'credit_card', 'debit_card', 'net_banking', 'wallet'],
   workingSchedule: defaultWorkingSchedule.map((item) => ({ ...item })),
   pickupSlotsText: 'Morning|09:00|11:00|40\nAfternoon|12:00|15:00|60\nEvening|16:00|19:00|50',
   deliverySlotsText: 'Same Day|14:00|18:00|40\nNext Day Morning|09:00|12:00|60',
@@ -225,10 +227,17 @@ export const LocationsPage: React.FC = () => {
             <>
               <div className="flex items-center gap-3 mb-4">
                 <MapPin className="text-brand" size={18} />
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">{selected.shopName}</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{selected.shopName}</h2>
               </div>
               <p className="text-sm text-slate-500 mb-2">{selected.fullAddress}</p>
               <p className="text-xs text-slate-500 mb-4">Capacity/day: {selected.dailyBookingLimit}</p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(selected.enabledPaymentMethods || []).map((method) => (
+                  <span key={method} className="px-2 py-1 rounded-full text-[10px] font-black bg-brand/10 text-brand">
+                    {paymentMethodLabel(method)}
+                  </span>
+                ))}
+              </div>
 
               <div className="border-t border-slate-100 dark:border-white/5 pt-4">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-3">Temporary Closures</h3>
@@ -401,6 +410,29 @@ export const LocationsPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="mt-5">
+              <h4 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-2">Payment Methods</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {paymentMethodOptions.map((method) => (
+                  <label key={method.value} className="text-xs flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-white/10">
+                    <input
+                      type="checkbox"
+                      checked={form.enabledPaymentMethods.includes(method.value)}
+                      onChange={(event) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          enabledPaymentMethods: event.target.checked
+                            ? [...prev.enabledPaymentMethods, method.value]
+                            : prev.enabledPaymentMethods.filter((item) => item !== method.value),
+                        }));
+                      }}
+                    />
+                    <span>{method.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className="flex justify-end mt-5 gap-3">
               <button type="button" onClick={() => setIsModalOpen(false)} className="btn-ghost">Cancel</button>
               <button type="submit" className="btn-brand">
@@ -430,6 +462,9 @@ function mapLocationToForm(location: LocationEntity): LocationFormState {
     timezone: location.timezone,
     dailyBookingLimit: String(location.dailyBookingLimit),
     pricingProfileKey: location.pricingProfileKey ?? '',
+    enabledPaymentMethods: location.enabledPaymentMethods?.length
+      ? location.enabledPaymentMethods
+      : ['upi', 'credit_card', 'debit_card', 'net_banking', 'wallet'],
     workingSchedule: location.workingSchedule.map((item) => ({ ...item })),
     pickupSlotsText: stringifySlots(location.pickupSlots),
     deliverySlotsText: stringifySlots(location.deliverySlots),
@@ -484,8 +519,22 @@ function parseFormToPayload(form: LocationFormState) {
     timezone: form.timezone.trim(),
     dailyBookingLimit: Number(form.dailyBookingLimit),
     pricingProfileKey: form.pricingProfileKey.trim() || undefined,
+    enabledPaymentMethods: form.enabledPaymentMethods,
     workingSchedule: form.workingSchedule,
     pickupSlots: parseSlots(form.pickupSlotsText),
     deliverySlots: parseSlots(form.deliverySlotsText),
   };
+}
+
+const paymentMethodOptions: { value: PaymentMethod; label: string }[] = [
+  { value: 'upi', label: 'UPI' },
+  { value: 'credit_card', label: 'Credit Card' },
+  { value: 'debit_card', label: 'Debit Card' },
+  { value: 'net_banking', label: 'Net Banking' },
+  { value: 'wallet', label: 'Wallets' },
+  { value: 'cash_on_delivery', label: 'Cash on Delivery' },
+];
+
+function paymentMethodLabel(value: PaymentMethod) {
+  return paymentMethodOptions.find((item) => item.value === value)?.label ?? value;
 }
