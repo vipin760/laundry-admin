@@ -29,9 +29,12 @@ export const MessagesPage: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isUserTyping, setIsUserTyping] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const selectedIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const isTypingRef = useRef(false);
 
   const selectedConversation = useMemo(
     () => conversations.find((item) => item._id === selectedId) ?? null,
@@ -60,14 +63,34 @@ export const MessagesPage: React.FC = () => {
 
     socketRef.current = socket;
     socket.on('connect', () => setIsConnected(true));
-    socket.on('disconnect', () => setIsConnected(false));
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+      setIsUserTyping(false);
+    });
+    socket.on('connect_error', () => {
+      setIsConnected(false);
+      setIsUserTyping(false);
+    });
     socket.on('support:new_message', (result: SendMessageResult) => {
       upsertConversation(result.conversation);
       if (selectedIdRef.current === result.conversation._id) {
         appendMessage(result.message);
+        setIsUserTyping(false);
         void supportApi.markRead(result.conversation._id).then(upsertConversation);
       }
     });
+    socket.on(
+      'support:typing',
+      (payload: { conversationId?: string; senderRole?: string; isTyping?: boolean }) => {
+        if (!payload || payload.senderRole !== 'user') {
+          return;
+        }
+        if (payload.conversationId !== selectedIdRef.current) {
+          return;
+        }
+        setIsUserTyping(Boolean(payload.isTyping));
+      },
+    );
     socket.on('support:conversation_updated', upsertConversation);
     socket.on('support:messages_read', upsertConversation);
     socket.on('support:error', (payload: { message?: string }) => {
@@ -75,6 +98,11 @@ export const MessagesPage: React.FC = () => {
     });
 
     return () => {
+      emitTyping(false);
+      if (typingTimeoutRef.current !== null) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
       socket.disconnect();
       socketRef.current = null;
     };
@@ -101,6 +129,13 @@ export const MessagesPage: React.FC = () => {
   }
 
   async function loadMessages(conversationId: string) {
+    emitTyping(false);
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current !== null) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    setIsUserTyping(false);
     setSelectedId(conversationId);
     setIsLoadingMessages(true);
     setError(null);
@@ -128,20 +163,66 @@ export const MessagesPage: React.FC = () => {
     setIsSending(true);
     setDraft('');
     try {
-      const socket = socketRef.current;
-      if (socket?.connected) {
-        socket.emit('support:send_message', { conversationId: selectedId, body });
-      } else {
-        const result = await supportApi.sendMessage(selectedId, body);
-        upsertConversation(result.conversation);
-        appendMessage(result.message);
+      emitTyping(false);
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current !== null) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
       }
+      const result = await supportApi.sendMessage(selectedId, body);
+      upsertConversation(result.conversation);
+      appendMessage(result.message);
     } catch (err) {
       setDraft(body);
       setError(err instanceof Error ? err.message : 'Unable to send message');
     } finally {
       setIsSending(false);
     }
+  }
+
+  function emitTyping(isTyping: boolean) {
+    const socket = socketRef.current;
+    const conversationId = selectedIdRef.current;
+    if (!socket?.connected || !conversationId) {
+      return;
+    }
+
+    socket.emit('support:typing', { conversationId, isTyping });
+  }
+
+  function handleDraftChange(value: string) {
+    setDraft(value);
+
+    if (!selectedIdRef.current) {
+      return;
+    }
+
+    const hasText = value.trim().length > 0;
+    if (!hasText) {
+      if (typingTimeoutRef.current !== null) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      if (isTypingRef.current) {
+        emitTyping(false);
+        isTypingRef.current = false;
+      }
+      return;
+    }
+
+    if (!isTypingRef.current) {
+      emitTyping(true);
+      isTypingRef.current = true;
+    }
+
+    if (typingTimeoutRef.current !== null) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = window.setTimeout(() => {
+      emitTyping(false);
+      isTypingRef.current = false;
+      typingTimeoutRef.current = null;
+    }, 1200);
   }
 
   function upsertConversation(conversation: SupportConversation) {
@@ -279,6 +360,11 @@ export const MessagesPage: React.FC = () => {
                   <p className="text-xs text-slate-500">
                     {selectedConversation.user?.email || selectedConversation.userId}
                   </p>
+                  {isUserTyping && (
+                    <p className="text-xs text-emerald-600 font-semibold mt-1">
+                      Customer is typing...
+                    </p>
+                  )}
                 </div>
                 <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-black uppercase">
                   {selectedConversation.status}
@@ -333,7 +419,7 @@ export const MessagesPage: React.FC = () => {
                 <div className="flex gap-3">
                   <input
                     value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
+                    onChange={(event) => handleDraftChange(event.target.value)}
                     maxLength={2000}
                     placeholder="Type a reply..."
                     className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 focus:ring-1 focus:ring-brand focus:outline-none text-sm"
