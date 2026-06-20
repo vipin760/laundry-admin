@@ -59,8 +59,8 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
         <Badge 
-          text={service.isActive !== false ? 'Active' : 'Inactive'} 
-          variant={service.isActive !== false ? 'green' : 'red'} 
+          text={service.isAvailable !== false ? 'Active' : 'Inactive'} 
+          variant={service.isAvailable !== false ? 'green' : 'red'} 
           dot 
         />
       </td>

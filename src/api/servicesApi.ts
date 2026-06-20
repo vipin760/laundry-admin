@@ -8,7 +8,7 @@ export interface LaundryService {
   category?: string;
   duration?: string;
   icon?: string;
-  isActive?: boolean;
+  isAvailable?: boolean;
 }
 
 export interface GetServicesParams {
@@ -31,6 +31,7 @@ export interface CreateServicePayload {
   category?: string;
   duration?: string;
   icon?: string;
+  isAvailable?: boolean;
 }
 
 export const servicesApi = {
