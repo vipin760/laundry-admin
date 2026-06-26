@@ -1,17 +1,18 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Zap, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  Users,
+  Zap,
+  LogOut,
   Users2,
   Package,
   ChevronRight,
   User,
   MessageCircle,
-  MapPin
+  MapPin,
+  Clock,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -36,6 +37,7 @@ export const Sidebar: React.FC = () => {
         { to: '/users', icon: Users, label: 'Users' },
         { to: '/services', icon: Zap, label: 'Services' },
         { to: '/locations', icon: MapPin, label: 'Locations' },
+        { to: '/time-slots', icon: Clock, label: 'Time Slots' },
       ]
     },
     {

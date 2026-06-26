@@ -1,12 +1,284 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import GooglePlacesAutocomplete, { geocodeByPlaceId } from 'react-google-places-autocomplete';
-import { MapPin, Plus, Save, X, Loader2, Power, PowerOff, CalendarDays } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MapPin, Plus, Save, X, Loader2, Power, PowerOff, CalendarDays, Search, Navigation, Map, LocateFixed } from 'lucide-react';
+import type L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { usersApi } from '../api/usersApi';
+import type { GeocodeCandidate } from '../api/usersApi';
 import { AdminLayout } from '../layouts/AdminLayout';
 import {
   defaultWorkingSchedule,
 } from '../api/locationsApi';
-import type { DaySchedule, LocationEntity, PaymentMethod, ServiceAreaType, TimeSlot } from '../api/locationsApi';
+import type { CapacityStats, DaySchedule, LocationEntity, PaymentMethod, ServiceAreaType, TimeSlot } from '../api/locationsApi';
+import { locationsApi } from '../api/locationsApi';
 import { useLocationsStore } from '../store/useLocationsStore';
+
+// ─── Map picker modal (plain Leaflet via useEffect — avoids react-leaflet/StrictMode crash) ───
+interface MapPickerProps {
+  initialLat: number;
+  initialLng: number;
+  onConfirm: (lat: number, lng: number, address?: string) => void;
+  onClose: () => void;
+}
+
+const MapPicker: React.FC<MapPickerProps> = ({ initialLat, initialLng, onConfirm, onClose }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const LeafletRef = useRef<typeof import('leaflet').default | null>(null);
+
+  const [pin, setPin] = useState<{ lat: number; lng: number }>({ lat: initialLat, lng: initialLng });
+  const [reverseAddr, setReverseAddr] = useState<string | null>(null);
+  const [loadingAddr, setLoadingAddr] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
+  // Search inside map picker
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // keep refs so Leaflet callbacks always see latest values
+  const setPinRef = useRef(setPin);
+  setPinRef.current = setPin;
+
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    setReverseAddr(null);
+    setLoadingAddr(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json() as { display_name?: string };
+      setReverseAddr(data.display_name ?? null);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingAddr(false);
+    }
+  }, []);
+
+  // Place / move the marker and pan map to a location
+  const placePin = useCallback((lat: number, lng: number) => {
+    const Leaflet = LeafletRef.current;
+    const map = mapRef.current;
+    if (!Leaflet || !map) return;
+    if (markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+    } else {
+      markerRef.current = Leaflet.marker([lat, lng]).addTo(map);
+    }
+    map.setView([lat, lng], 16);
+    setPinRef.current({ lat, lng });
+    void reverseGeocode(lat, lng);
+  }, [reverseGeocode]);
+
+  const placePinRef = useRef(placePin);
+  placePinRef.current = placePin;
+
+  // Search Nominatim
+  const runSearch = useCallback(async (q: string) => {
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json() as Array<{ display_name: string; lat: string; lon: string }>;
+      setSearchResults(data);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => void runSearch(val), 500);
+  };
+
+  // GPS: get current position
+  const handleGPS = useCallback(() => {
+    setGpsError(null);
+    if (!navigator.geolocation) {
+      setGpsError('Geolocation not supported by this browser.');
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLoading(false);
+        placePinRef.current(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsError(err.code === 1 ? 'Location access denied. Please allow in browser settings.' : 'Could not get location.');
+      },
+      { timeout: 10000 }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    import('leaflet').then((Lmod) => {
+      const Leaflet = Lmod.default;
+      if (mapRef.current) return; // StrictMode guard
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (Leaflet.Icon.Default.prototype as any)._getIconUrl;
+      Leaflet.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+
+      LeafletRef.current = Leaflet;
+      const center: [number, number] = initialLat ? [initialLat, initialLng] : [20.5937, 78.9629];
+      const zoom = initialLat ? 15 : 5;
+
+      const map = Leaflet.map(containerRef.current!, { center, zoom });
+      mapRef.current = map;
+
+      Leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(map);
+
+      if (initialLat) {
+        markerRef.current = Leaflet.marker([initialLat, initialLng]).addTo(map);
+      }
+
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        placePinRef.current(e.latlng.lat, e.latlng.lng);
+      });
+    });
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+        LeafletRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: '92vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/10">
+          <div className="flex items-center gap-2">
+            <Map size={16} className="text-brand" />
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm">Pick Shop Location on Map</h3>
+          </div>
+          <button type="button" onClick={onClose} className="btn-ghost p-1"><X size={15} /></button>
+        </div>
+
+        {/* Search bar + GPS button */}
+        <div className="px-4 pt-3 pb-2 relative">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void runSearch(searchQuery); } }}
+                placeholder="Search for a place (e.g. Ponnani beach road)"
+                className="input-premium pl-8 text-xs"
+              />
+              {searchLoading && (
+                <Loader2 size={12} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleGPS}
+              disabled={gpsLoading}
+              title="Use my current GPS location"
+              className="btn-ghost text-xs flex items-center gap-1 shrink-0 border border-slate-200 dark:border-white/10 disabled:opacity-50"
+            >
+              {gpsLoading ? <Loader2 size={13} className="animate-spin" /> : <LocateFixed size={13} />}
+              <span className="hidden sm:inline">My Location</span>
+            </button>
+          </div>
+
+          {/* Search dropdown */}
+          {searchResults.length > 0 && (
+            <ul className="absolute z-10 left-4 right-4 top-full mt-0.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-white/10 shadow-xl max-h-44 overflow-y-auto">
+              {searchResults.map((r, i) => (
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      placePin(parseFloat(r.lat), parseFloat(r.lon));
+                      setSearchQuery(r.display_name.split(',')[0]);
+                      setSearchResults([]);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-brand/10 flex items-start gap-2 border-b border-slate-100 dark:border-white/5 last:border-0"
+                  >
+                    <MapPin size={11} className="mt-0.5 shrink-0 text-brand" />
+                    <span className="text-slate-700 dark:text-slate-300 line-clamp-2">{r.display_name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {gpsError && <p className="text-xs text-red-500 mt-1">{gpsError}</p>}
+          <p className="text-xs text-slate-400 mt-1.5">Or click directly on the map to drop a pin.</p>
+        </div>
+
+        {/* Map */}
+        <div ref={containerRef} style={{ height: 320, width: '100%' }} />
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-slate-100 dark:border-white/10 space-y-1.5">
+          {pin.lat !== 0 ? (
+            <div className="flex gap-4 text-xs text-slate-600 dark:text-slate-400">
+              <span>Lat: <strong>{pin.lat.toFixed(6)}</strong></span>
+              <span>Lng: <strong>{pin.lng.toFixed(6)}</strong></span>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">No pin placed yet.</p>
+          )}
+          {loadingAddr && (
+            <p className="text-xs text-slate-400 flex items-center gap-1">
+              <Loader2 size={11} className="animate-spin" /> Fetching address…
+            </p>
+          )}
+          {reverseAddr && (
+            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{reverseAddr}</p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost text-xs">Cancel</button>
+            <button
+              type="button"
+              disabled={pin.lat === 0}
+              onClick={() => onConfirm(pin.lat, pin.lng, reverseAddr ?? undefined)}
+              className="btn-brand text-xs disabled:opacity-50"
+            >
+              <MapPin size={13} />
+              <span>Use This Location</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 type LocationFormState = {
   shopName: string;
@@ -38,7 +310,7 @@ const emptyForm = (): LocationFormState => ({
   serviceRadiusKm: '8',
   polygonText: '',
   timezone: 'Asia/Kolkata',
-  dailyBookingLimit: '200',
+  dailyBookingLimit: '0',
   pricingProfileKey: '',
   enabledPaymentMethods: ['upi', 'credit_card', 'debit_card', 'net_banking', 'wallet'],
   workingSchedule: defaultWorkingSchedule.map((item) => ({ ...item })),
@@ -46,6 +318,93 @@ const emptyForm = (): LocationFormState => ({
   deliverySlotsText: 'Same Day|14:00|18:00|40\nNext Day Morning|09:00|12:00|60',
 });
 
+// ─── Address search component ─────────────────────────────────────────────────
+interface AddressSearchProps {
+  city: string;
+  onSelect: (address: string, lat: number, lng: number) => void;
+}
+
+const AddressSearch: React.FC<AddressSearchProps> = ({ city, onSelect }) => {
+  const [query, setQuery] = useState('');
+  const [candidates, setCandidates] = useState<GeocodeCandidate[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const search = async (q: string) => {
+    if (!q.trim()) { setCandidates([]); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await usersApi.geocode(q, city || undefined);
+      setCandidates(results);
+      if (results.length === 0) setError('No results found. Try a different search or enter manually below.');
+    } catch {
+      setError('Search failed. Enter address manually below.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(val), 600);
+  };
+
+  return (
+    <div className="relative">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={handleChange}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), search(query))}
+            placeholder="Search address (e.g. Mappala House, Ponnani)"
+            className="input-premium pl-8"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => search(query)}
+          disabled={loading || !query.trim()}
+          className="btn-brand text-xs px-3 disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Navigation size={13} />}
+          <span>Fetch</span>
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{error}</p>}
+
+      {candidates.length > 0 && (
+        <ul className="absolute z-10 top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-white/10 shadow-xl max-h-52 overflow-y-auto">
+          {candidates.map((c, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(c.displayName, c.latitude, c.longitude);
+                  setQuery(c.displayName.split(',')[0]);
+                  setCandidates([]);
+                }}
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-brand/10 flex items-start gap-2 border-b border-slate-100 dark:border-white/5 last:border-0"
+              >
+                <MapPin size={13} className="mt-0.5 shrink-0 text-brand" />
+                <span className="text-slate-700 dark:text-slate-300 line-clamp-2">{c.displayName}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export const LocationsPage: React.FC = () => {
   const {
     items,
@@ -68,6 +427,8 @@ export const LocationsPage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [form, setForm] = useState<LocationFormState>(emptyForm());
   const [closureForm, setClosureForm] = useState({ startDate: '', endDate: '', reason: '', note: '' });
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [capacityStats, setCapacityStats] = useState<CapacityStats | null>(null);
 
   useEffect(() => {
     void fetchLocations({ includeInactive: true, page: 1, limit: 50 });
@@ -76,6 +437,11 @@ export const LocationsPage: React.FC = () => {
   useEffect(() => {
     if (selected) {
       void fetchClosures(selected._id);
+      const today = new Date().toISOString().slice(0, 10);
+      setCapacityStats(null);
+      void locationsApi.getCapacity(selected._id, today).then(setCapacityStats).catch(() => {});
+    } else {
+      setCapacityStats(null);
     }
   }, [selected, fetchClosures]);
 
@@ -109,7 +475,13 @@ export const LocationsPage: React.FC = () => {
 
   async function onSubmitLocation(event: React.FormEvent) {
     event.preventDefault();
-    const payload = parseFormToPayload(form);
+    let payload: ReturnType<typeof parseFormToPayload>;
+    try {
+      payload = parseFormToPayload(form);
+    } catch (err: any) {
+      alert(err?.message ?? 'Invalid form data. Please check all fields.');
+      return;
+    }
 
     if (isEditMode && selected) {
       await updateLocation(selected._id, payload);
@@ -187,6 +559,27 @@ export const LocationsPage: React.FC = () => {
                       <p className="font-bold text-slate-900 dark:text-white">{location.shopName}</p>
                       <p className="text-xs text-slate-500">{location.city}</p>
                       <p className="text-xs text-slate-400 mt-1">{location.fullAddress}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {location.serviceAreaType === 'radius'
+                          ? `Service radius: ${location.serviceRadiusKm ?? '?'} km`
+                          : 'Polygon zone'}
+                      </p>
+                      {(() => {
+                        const [lng, lat] = location.geoPoint?.coordinates ?? [];
+                        if (lat == null || lng == null) return null;
+                        return (
+                          <a
+                            href={`https://www.google.com/maps?q=${lat},${lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-brand/70 hover:text-brand mt-0.5 block"
+                            title="Verify pin on Google Maps"
+                          >
+                            📍 {lat.toFixed(5)}, {lng.toFixed(5)}
+                          </a>
+                        );
+                      })()}
                     </div>
                     <span className={`px-2 py-1 rounded-full text-[10px] font-black ${location.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-600'}`}>
                       {location.isActive ? 'ACTIVE' : 'INACTIVE'}
@@ -230,7 +623,41 @@ export const LocationsPage: React.FC = () => {
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">{selected.shopName}</h2>
               </div>
               <p className="text-sm text-slate-500 mb-2">{selected.fullAddress}</p>
-              <p className="text-xs text-slate-500 mb-4">Capacity/day: {selected.dailyBookingLimit}</p>
+              {(() => {
+                const [lng, lat] = selected.geoPoint?.coordinates ?? [];
+                if (lat == null || lng == null) return (
+                  <p className="text-xs text-red-500 mb-2 font-semibold">⚠️ No GPS coordinates stored</p>
+                );
+                return (
+                  <a
+                    href={`https://www.google.com/maps?q=${lat},${lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-brand hover:underline mb-2"
+                  >
+                    <MapPin size={11} />
+                    Verify on Google Maps ({lat.toFixed(5)}, {lng.toFixed(5)})
+                  </a>
+                );
+              })()}
+              <div className="mb-4">
+                {capacityStats ? (
+                  <div className={`flex items-center gap-2 text-xs px-2 py-1 rounded-lg w-fit font-semibold ${
+                    capacityStats.isFull
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400'
+                  }`}>
+                    {capacityStats.isFull && <span>🔴</span>}
+                    Today: {capacityStats.usedToday} order{capacityStats.usedToday !== 1 ? 's' : ''} /{' '}
+                    {capacityStats.isUnlimited ? 'unlimited' : `${capacityStats.limit} limit`}
+                    {capacityStats.isFull && ' — FULL'}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Capacity/day: {selected.dailyBookingLimit === 0 ? 'Unlimited' : selected.dailyBookingLimit}
+                  </p>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 mb-4">
                 {(selected.enabledPaymentMethods || []).map((method) => (
                   <span key={method} className="px-2 py-1 rounded-full text-[10px] font-black bg-brand/10 text-brand">
@@ -277,6 +704,23 @@ export const LocationsPage: React.FC = () => {
         </section>
       </div>
 
+      {isMapPickerOpen && (
+        <MapPicker
+          initialLat={parseFloat(form.latitude) || 0}
+          initialLng={parseFloat(form.longitude) || 0}
+          onConfirm={(lat, lng, address) => {
+            setForm((p) => ({
+              ...p,
+              latitude: String(lat),
+              longitude: String(lng),
+              ...(address ? { fullAddress: address } : {}),
+            }));
+            setIsMapPickerOpen(false);
+          }}
+          onClose={() => setIsMapPickerOpen(false)}
+        />
+      )}
+
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] p-4 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/45" onClick={() => setIsModalOpen(false)} />
@@ -293,42 +737,111 @@ export const LocationsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input required placeholder="Shop Name" value={form.shopName} onChange={(e) => setForm((p) => ({ ...p, shopName: e.target.value }))} className="input-premium" />
               <input required placeholder="City" value={form.city} onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))} className="input-premium" />
-              <input required placeholder="Contact Number" value={form.contactNumber} onChange={(e) => setForm((p) => ({ ...p, contactNumber: e.target.value }))} className="input-premium" />
+              <input
+                type="tel"
+                required
+                placeholder="Contact Number (e.g. +919876543210)"
+                value={form.contactNumber}
+                onChange={(e) => setForm((p) => ({ ...p, contactNumber: e.target.value }))}
+                pattern="^\+?[0-9]{8,15}$"
+                title="Enter 8–15 digit phone number, optionally starting with +"
+                className="input-premium"
+              />
               <input required placeholder="Timezone" value={form.timezone} onChange={(e) => setForm((p) => ({ ...p, timezone: e.target.value }))} className="input-premium" />
-              {/* Google Places Autocomplete for Address */}
+              {/* Auto-fetch address */}
               <div className="col-span-2">
-                <GooglePlacesAutocomplete
-                  apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
-                  selectProps={{
-                    placeholder: 'Search Address',
-                    onChange: async (val: any) => {
-                      if (!val) return;
-                      const results = await geocodeByPlaceId(val.value.place_id);
-                      if (results && results[0]) {
-                        const loc = results[0].geometry.location;
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Auto-fetch Address &amp; Coordinates
+                </label>
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1">
+                    <AddressSearch
+                      city={form.city}
+                      onSelect={(address, lat, lng) =>
                         setForm((p) => ({
                           ...p,
-                          fullAddress: results[0].formatted_address,
-                          latitude: String(loc.lat()),
-                          longitude: String(loc.lng()),
-                        }));
+                          fullAddress: address,
+                          latitude: String(lat),
+                          longitude: String(lng),
+                        }))
                       }
-                    },
-                    value: form.fullAddress ? { label: form.fullAddress, value: form.fullAddress } : null,
-                  }}
-                />
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMapPickerOpen(true)}
+                    className="btn-ghost text-xs flex items-center gap-1 shrink-0 mt-0.5 border border-slate-200 dark:border-white/10"
+                    title="Pick exact location on map"
+                  >
+                    <Map size={13} />
+                    <span>Map</span>
+                  </button>
+                </div>
               </div>
-              {/* Hide manual lat/lng fields, but keep for debugging or fallback */}
-              {/*
-              <input required placeholder="Latitude" value={form.latitude} onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))} className="input-premium" />
-              <input required placeholder="Longitude" value={form.longitude} onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))} className="input-premium" />
-              */}
+              {/* Show stored coords so the admin can spot wrong pins */}
+              <div className="col-span-2 flex items-center gap-3 flex-wrap">
+                {form.latitude && form.longitude ? (
+                  <>
+                    <span className="text-xs text-slate-500">
+                      Pinned: <strong>{parseFloat(form.latitude).toFixed(5)}</strong>, <strong>{parseFloat(form.longitude).toFixed(5)}</strong>
+                    </span>
+                    <a
+                      href={`https://www.google.com/maps?q=${form.latitude},${form.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-brand hover:underline flex items-center gap-1"
+                    >
+                      <MapPin size={11} /> Verify pin on Google Maps
+                    </a>
+                  </>
+                ) : (
+                  <span className="text-xs text-red-500 font-semibold">⚠️ No coordinates set — use Address Search or Map picker above</span>
+                )}
+                <input type="hidden" value={form.latitude} />
+                <input type="hidden" value={form.longitude} />
+              </div>
               <select value={form.serviceAreaType} onChange={(e) => setForm((p) => ({ ...p, serviceAreaType: e.target.value as ServiceAreaType }))} className="input-premium">
                 <option value="radius">Radius</option>
                 <option value="polygon">Polygon</option>
               </select>
-              <input placeholder="Radius (km)" value={form.serviceRadiusKm} onChange={(e) => setForm((p) => ({ ...p, serviceRadiusKm: e.target.value }))} className="input-premium" />
-              <input required placeholder="Daily Booking Limit" value={form.dailyBookingLimit} onChange={(e) => setForm((p) => ({ ...p, dailyBookingLimit: e.target.value }))} className="input-premium" />
+              {form.serviceAreaType === 'radius' ? (
+                <div className="relative">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Service Radius <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      placeholder="e.g. 3"
+                      required
+                      value={form.serviceRadiusKm}
+                      onChange={(e) => setForm((p) => ({ ...p, serviceRadiusKm: e.target.value }))}
+                      className="input-premium pr-12"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none select-none">
+                      km
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div /> /* placeholder to preserve grid layout */
+              )}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Daily Booking Limit <span className="text-slate-300">(0 = unlimited)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  placeholder="0 = unlimited, e.g. 50"
+                  value={form.dailyBookingLimit}
+                  onChange={(e) => setForm((p) => ({ ...p, dailyBookingLimit: e.target.value }))}
+                  className="input-premium"
+                />
+              </div>
               <input placeholder="Pricing Profile Key" value={form.pricingProfileKey} onChange={(e) => setForm((p) => ({ ...p, pricingProfileKey: e.target.value }))} className="input-premium" />
             </div>
 
@@ -507,14 +1020,18 @@ function parseFormToPayload(form: LocationFormState) {
     shopName: form.shopName.trim(),
     city: form.city.trim(),
     fullAddress: form.fullAddress.trim(),
-    contactNumber: form.contactNumber.trim(),
+    ...(form.contactNumber.trim() ? { contactNumber: form.contactNumber.trim() } : {}),
     geoPoint: {
       latitude: Number(form.latitude),
       longitude: Number(form.longitude),
     },
     serviceAreaType: form.serviceAreaType,
-    serviceRadiusKm:
-      form.serviceAreaType === 'radius' ? Number(form.serviceRadiusKm || 0) : undefined,
+    serviceRadiusKm: (() => {
+      if (form.serviceAreaType !== 'radius') return undefined;
+      const km = Number(form.serviceRadiusKm);
+      if (!km || km < 0.5) throw new Error('Service radius must be at least 0.5 km');
+      return km;
+    })(),
     servicePolygon,
     timezone: form.timezone.trim(),
     dailyBookingLimit: Number(form.dailyBookingLimit),

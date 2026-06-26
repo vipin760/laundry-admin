@@ -71,6 +71,16 @@ export interface LocationClosure {
   createdAt: string;
 }
 
+export interface CapacityStats {
+  locationId: string;
+  date: string;
+  limit: number;
+  usedToday: number;
+  remainingToday: number | null;
+  isUnlimited: boolean;
+  isFull: boolean;
+}
+
 export interface CreateOrUpdateLocationPayload {
   shopName: string;
   city: string;
@@ -139,6 +149,10 @@ export const locationsApi = {
       method: 'PATCH',
       body: JSON.stringify({ isActive }),
     });
+  },
+
+  async getCapacity(locationId: string, date: string): Promise<CapacityStats> {
+    return apiClient(`/locations/${locationId}/capacity?date=${date}`);
   },
 
   async getClosures(locationId: string): Promise<LocationClosure[]> {

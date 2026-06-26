@@ -8,6 +8,7 @@ import { ServicesPage } from './pages/ServicesPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { MessagesPage } from './pages/MessagesPage';
 import { LocationsPage } from './pages/LocationsPage';
+import { TimeSlotsPage } from './pages/TimeSlotsPage';
 import './App.css';
 
 import { ThemeProvider } from './context/ThemeContext';
@@ -74,6 +75,15 @@ function App() {
               }
             />
             
+            <Route
+              path="/time-slots"
+              element={
+                <ProtectedRoute>
+                  <TimeSlotsPage />
+                </ProtectedRoute>
+              }
+            />
+
             <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
         </AuthProvider>
