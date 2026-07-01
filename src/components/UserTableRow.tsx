@@ -85,7 +85,7 @@ export const UserTableRow: React.FC<UserTableRowProps> = ({
       {/* Role — badge + dropdown for non-admin */}
       <td className="px-6 py-4 whitespace-nowrap">
         {isAdmin ? (
-          <Badge text="Admin" variant="purple" />
+          <Badge text={ROLE_LABELS['admin']} variant={ROLE_BADGE_VARIANT['admin']} />
         ) : (
           <div className="relative inline-flex items-center gap-1">
             <select
@@ -96,8 +96,11 @@ export const UserTableRow: React.FC<UserTableRowProps> = ({
                          bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-500/20
                          focus:outline-none focus:ring-1 focus:ring-brand transition-all disabled:opacity-50"
             >
-              <option value="user">User</option>
-              <option value="delivery_partner">Delivery Partner</option>
+              {Object.entries(ROLE_LABELS)
+                .filter(([k]) => k !== 'admin')
+                .map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
             </select>
             <ChevronDown size={12} className="absolute right-2 pointer-events-none text-blue-500" />
             {roleLoading && (

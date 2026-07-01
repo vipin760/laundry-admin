@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Plus, Pencil, Trash2, Star, StarOff, Search, MapPin,
   Home, Building2, Loader2, CheckCircle2,
@@ -32,8 +32,6 @@ const AddressForm: React.FC<AddressFormProps> = ({ initial = BLANK, onSave, onCa
   const [candidates, setCandidates] = useState<GeocodeCandidate[]>([]);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const set = (key: keyof UserAddressPayload, value: any) =>
     setForm((f) => ({ ...f, [key]: value }));
 

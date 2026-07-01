@@ -24,7 +24,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ initialLat, initialLng, onConfirm
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
-  const LeafletRef = useRef<typeof import('leaflet').default | null>(null);
+  const LeafletRef = useRef<typeof L | null>(null);
 
   const [pin, setPin] = useState<{ lat: number; lng: number }>({ lat: initialLat, lng: initialLng });
   const [reverseAddr, setReverseAddr] = useState<string | null>(null);
@@ -1093,7 +1093,7 @@ function parseFormToPayload(form: LocationFormState) {
     shopName: form.shopName.trim(),
     city: form.city.trim(),
     fullAddress: form.fullAddress.trim(),
-    ...(form.contactNumber.trim() ? { contactNumber: form.contactNumber.trim() } : {}),
+    contactNumber: form.contactNumber.trim(),
     geoPoint: {
       latitude: Number(form.latitude),
       longitude: Number(form.longitude),
