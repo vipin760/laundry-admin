@@ -5,7 +5,7 @@ export interface LaundryService {
   name: string;
   description: string;
   price: number;
-  category?: string;
+  categories?: string[];
   duration?: string;
   icon?: string;
   imageUrl?: string;
@@ -29,7 +29,7 @@ export interface CreateServicePayload {
   name: string;
   price: number;
   description: string;
-  category?: string;
+  categories?: string[];
   duration?: string;
   icon?: string;
   imageUrl?: string;

@@ -10,15 +10,8 @@ interface ServiceTableRowProps {
 }
 
 export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdit, onDelete }) => {
-  const getCategoryColor = (category?: string) => {
-    const cat = category?.toLowerCase() || '';
-    if (cat.includes('iron')) return 'pink';
-    if (cat.includes('dry')) return 'purple';
-    if (cat.includes('shoe')) return 'green';
-    if (cat.includes('home') || cat.includes('blanket')) return 'pink';
-    if (cat.includes('wash & iron')) return 'orange';
-    return 'blue';
-  };
+  const categoryVariant = (cat: string): 'blue' | 'orange' =>
+    cat === 'instant' ? 'blue' : 'orange';
 
   const getIconStyles = (name: string) => {
     const lowerName = name.toLowerCase();
@@ -45,8 +38,20 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
           </div>
         </div>
       </td>
-      <td className="px-6 py-5 whitespace-nowrap">
-        <Badge text={service.category || 'Wash & Fold'} variant={getCategoryColor(service.category)} />
+      <td className="px-6 py-5">
+        <div className="flex flex-wrap gap-1.5">
+          {service.categories && service.categories.length > 0 ? (
+            service.categories.map((cat) => (
+              <Badge
+                key={cat}
+                text={cat === 'instant' ? '⚡ Instant' : '🕐 Scheduled'}
+                variant={categoryVariant(cat)}
+              />
+            ))
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+        </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
         <div className="text-sm font-black text-indigo-600 dark:text-indigo-400">₹{service.price}</div>

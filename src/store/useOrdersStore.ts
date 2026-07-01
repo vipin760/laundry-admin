@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { ordersApi } from '../api/ordersApi';
-import type { Order, OrderStatus, UpdateStatusPayload } from '../api/ordersApi';
+import type { Order, OrderStatus, UpdateStatusPayload, SortField, SortDir } from '../api/ordersApi';
 
 interface OrdersState {
   orders: Order[];
   total: number;
   isLoading: boolean;
   error: string | null;
-  fetchOrders: (params?: { page?: number; limit?: number; status?: OrderStatus }) => Promise<void>;
+  fetchOrders: (params?: { page?: number; limit?: number; status?: OrderStatus | ''; sortField?: SortField; sortDir?: SortDir }) => Promise<void>;
   updateStatus: (id: string, payload: UpdateStatusPayload) => Promise<void>;
 }
 

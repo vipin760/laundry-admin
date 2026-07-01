@@ -504,6 +504,12 @@ export const LocationsPage: React.FC = () => {
     setClosureForm({ startDate: '', endDate: '', reason: '', note: '' });
   }
 
+  // Unique city list for dropdown filter
+  const cityOptions = useMemo(() => {
+    const cities = Array.from(new Set(items.map((l) => l.city).filter(Boolean)));
+    return cities.sort();
+  }, [items]);
+
   return (
     <AdminLayout>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
@@ -523,106 +529,151 @@ export const LocationsPage: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6 items-start">
+        {/* ── Left panel ── */}
         <section className="premium-card !p-0 overflow-hidden">
+          {/* Search + city filter */}
           <div className="p-4 border-b border-slate-100 dark:border-white/5 flex gap-3">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search location"
-              className="input-premium"
-            />
-            <input
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search location"
+                className="input-premium pl-9"
+              />
+            </div>
+            <select
               value={cityFilter}
               onChange={(event) => setCityFilter(event.target.value)}
-              placeholder="Filter by city"
-              className="input-premium"
-            />
+              className="input-premium min-w-[140px]"
+            >
+              <option value="">Filter by city</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="max-h-[640px] overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
+          {/* Location cards */}
+          <div className="max-h-[680px] overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
             {isLoading && items.length === 0 ? (
-              <div className="p-8 flex items-center justify-center text-slate-500">
-                <Loader2 className="w-5 h-5 animate-spin" />
+              <div className="p-10 flex items-center justify-center text-slate-400">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                <span className="text-sm">Loading locations…</span>
               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-sm">No locations found.</div>
+              <div className="p-10 text-center text-slate-500 text-sm">No locations found.</div>
             ) : (
-              filteredItems.map((location) => (
-                <div
-                  key={location._id}
-                  className={`p-4 cursor-pointer transition ${selected?._id === location._id ? 'bg-brand/10' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}
-                  onClick={() => setSelected(location)}
-                >
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white">{location.shopName}</p>
-                      <p className="text-xs text-slate-500">{location.city}</p>
-                      <p className="text-xs text-slate-400 mt-1">{location.fullAddress}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {location.serviceAreaType === 'radius'
-                          ? `Service radius: ${location.serviceRadiusKm ?? '?'} km`
-                          : 'Polygon zone'}
-                      </p>
-                      {(() => {
-                        const [lng, lat] = location.geoPoint?.coordinates ?? [];
-                        if (lat == null || lng == null) return null;
-                        return (
-                          <a
-                            href={`https://www.google.com/maps?q=${lat},${lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-xs text-brand/70 hover:text-brand mt-0.5 block"
-                            title="Verify pin on Google Maps"
+              filteredItems.map((location) => {
+                const [lng, lat] = location.geoPoint?.coordinates ?? [];
+                const hasCoords = lat != null && lng != null;
+                const isSelected = selected?._id === location._id;
+                return (
+                  <div
+                    key={location._id}
+                    onClick={() => setSelected(location)}
+                    className={`p-4 cursor-pointer transition-colors ${isSelected ? 'bg-violet-50 dark:bg-violet-900/20 border-l-4 border-violet-500' : 'hover:bg-slate-50 dark:hover:bg-white/5 border-l-4 border-transparent'}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Purple shop icon */}
+                      <div className="shrink-0 w-11 h-11 rounded-full bg-violet-600 flex items-center justify-center shadow-sm">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white text-[15px] leading-tight">{location.shopName}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{location.city}</p>
+                          </div>
+                          <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide ${location.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                            {location.isActive ? 'ACTIVE' : 'INACTIVE'}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{location.fullAddress}</p>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                          <span className="flex items-center gap-1 text-xs text-rose-500">
+                            <MapPin size={12} className="shrink-0" />
+                            {location.serviceAreaType === 'radius'
+                              ? `Service radius: ${location.serviceRadiusKm ?? '?'} km`
+                              : 'Polygon zone'}
+                          </span>
+                          {hasCoords && (
+                            <a
+                              href={`https://www.google.com/maps?q=${lat},${lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
+                              title="Open in Google Maps"
+                            >
+                              <Navigation size={11} className="shrink-0" />
+                              {(lat as number).toFixed(5)}, {(lng as number).toFixed(5)}
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(location); }}
                           >
-                            📍 {lat.toFixed(5)}, {lng.toFixed(5)}
-                          </a>
-                        );
-                      })()}
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            Edit
+                          </button>
+                          <button
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${location.isActive ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20'}`}
+                            onClick={(e) => { e.stopPropagation(); void onToggleStatus(location); }}
+                          >
+                            {location.isActive ? <PowerOff size={12} /> : <Power size={12} />}
+                            {location.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-black ${location.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-600'}`}>
-                      {location.isActive ? 'ACTIVE' : 'INACTIVE'}
-                    </span>
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      className="btn-ghost text-xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openEditModal(location);
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="btn-ghost text-xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void onToggleStatus(location);
-                      }}
-                    >
-                      {location.isActive ? <PowerOff size={14} /> : <Power size={14} />}
-                      <span>{location.isActive ? 'Deactivate' : 'Activate'}</span>
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
-          <div className="p-3 text-xs text-slate-500 border-t border-slate-100 dark:border-white/5">
-            Total Locations: {total}
+
+          {/* Footer */}
+          <div className="px-4 py-3 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/3">
+            Total Locations: <span className="text-slate-700 dark:text-slate-300">{total}</span>
           </div>
         </section>
 
-        <section className="premium-card">
+        {/* ── Right panel ── */}
+        <section className="premium-card min-h-[400px]">
           {selected ? (
             <>
+              {/* Header */}
               <div className="flex items-center gap-3 mb-4">
-                <MapPin className="text-brand" size={18} />
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{selected.shopName}</h2>
+                <div className="w-10 h-10 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">{selected.shopName}</h2>
+                  <p className="text-xs text-slate-500">{selected.city}</p>
+                </div>
               </div>
+
               <p className="text-sm text-slate-500 mb-2">{selected.fullAddress}</p>
+
               {(() => {
                 const [lng, lat] = selected.geoPoint?.coordinates ?? [];
                 if (lat == null || lng == null) return (
@@ -640,6 +691,7 @@ export const LocationsPage: React.FC = () => {
                   </a>
                 );
               })()}
+
               <div className="mb-4">
                 {capacityStats ? (
                   <div className={`flex items-center gap-2 text-xs px-2 py-1 rounded-lg w-fit font-semibold ${
@@ -658,6 +710,7 @@ export const LocationsPage: React.FC = () => {
                   </p>
                 )}
               </div>
+
               <div className="flex flex-wrap gap-2 mb-4">
                 {(selected.enabledPaymentMethods || []).map((method) => (
                   <span key={method} className="px-2 py-1 rounded-full text-[10px] font-black bg-brand/10 text-brand">
@@ -699,7 +752,27 @@ export const LocationsPage: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="text-sm text-slate-500">Select a location to view closure and branch details.</div>
+            /* Empty state illustration */
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <div className="relative mb-6">
+                {/* Sparkle dots */}
+                <div className="absolute -top-2 -right-2 w-2.5 h-2.5 rounded-full bg-violet-300 opacity-80" />
+                <div className="absolute top-1 -left-3 w-1.5 h-1.5 rounded-full bg-indigo-300 opacity-70" />
+                <div className="absolute -bottom-1 right-0 w-2 h-2 rounded-full bg-violet-200 opacity-60" />
+                <div className="absolute bottom-2 -left-1 w-1 h-1 rounded-full bg-indigo-400 opacity-80" />
+                {/* Map pin illustration */}
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-200 dark:shadow-violet-900/40">
+                  <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">Select a location</h3>
+              <p className="text-sm text-slate-500 max-w-[220px] leading-relaxed">
+                Select a location to view closure and branch details.
+              </p>
+            </div>
           )}
         </section>
       </div>

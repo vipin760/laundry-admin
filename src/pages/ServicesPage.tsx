@@ -19,7 +19,8 @@ export const ServicesPage: React.FC = () => {
   const limit = 6;
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newService, setNewService] = useState({ name: '', price: 100, description: '', category: '', duration: '' });
+  const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '' });
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Image upload state
@@ -57,8 +58,15 @@ export const ServicesPage: React.FC = () => {
 
   const handleCloseModal = () => {
     setIsAddModalOpen(false);
-    setNewService({ name: '', price: 100, description: '', category: '', duration: '' });
+    setNewService({ name: '', price: 100, description: '', duration: '' });
+    setSelectedCategories([]);
     handleRemoveImage();
+  };
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
   };
 
   const handleAddService = async (e: React.FormEvent) => {
@@ -84,7 +92,7 @@ export const ServicesPage: React.FC = () => {
         }
       }
 
-      await addService({ ...newService, price: Number(newService.price), imageUrl });
+      await addService({ ...newService, price: Number(newService.price), imageUrl, categories: selectedCategories });
       handleCloseModal();
       setPage(1);
     } catch (err) {
@@ -320,26 +328,66 @@ export const ServicesPage: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Base Price (₹)</label>
-                      <input
-                        type="number"
-                        required
-                        className="input-premium"
-                        value={newService.price}
-                        onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Category</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Ironing"
-                        className="input-premium"
-                        value={newService.category}
-                        onChange={(e) => setNewService({ ...newService, category: e.target.value })}
-                      />
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Base Price (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      className="input-premium"
+                      value={newService.price}
+                      onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  {/* ── Category checkboxes ── */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">
+                      Category <span className="text-slate-300 normal-case font-medium">(select one or both)</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['instant', 'scheduled'] as const).map((cat) => {
+                        const checked = selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleCategory(cat)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all text-left ${
+                              checked
+                                ? cat === 'instant'
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+                                  : 'border-orange-500 bg-orange-50 dark:bg-orange-500/10'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                              checked
+                                ? cat === 'instant'
+                                  ? 'border-blue-500 bg-blue-500'
+                                  : 'border-orange-500 bg-orange-500'
+                                : 'border-slate-300 dark:border-slate-600'
+                            }`}>
+                              {checked && (
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-bold capitalize ${
+                                checked
+                                  ? cat === 'instant' ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'
+                                  : 'text-slate-700 dark:text-slate-300'
+                              }`}>
+                                {cat === 'instant' ? '⚡ Instant' : '🕐 Scheduled'}
+                              </p>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                {cat === 'instant' ? 'Same-day pickup & delivery' : 'Book a time slot in advance'}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

@@ -9,12 +9,16 @@ export type OrderStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
+export type SortField = 'createdAt' | 'updatedAt' | 'billAmount' | 'totalAmount';
+export type SortDir   = 'asc' | 'desc';
+
 export interface OrderItem {
   serviceId: string;
   serviceName?: string;
   name?: string;
   price: number;
   quantity: number;
+  category?: 'instant' | 'scheduled';
 }
 
 export interface Order {
@@ -28,6 +32,7 @@ export interface Order {
   address?: string;
   pickupDate?: string;
   pickupSlot?: string;
+  pickupTime?: string;
   deliverySlot?: string;
   // Tracking fields
   driverName?: string;
@@ -47,6 +52,9 @@ export interface UpdateStatusPayload {
   weightKg?: number;
   itemCount?: number;
   billAmount?: number;
+  pickupTime?: string;
+  /** OTP required when advancing OUT_FOR_DELIVERY → COMPLETED */
+  otp?: string;
 }
 
 export interface GetOrdersResponse {
@@ -59,7 +67,9 @@ export interface GetOrdersResponse {
 export interface GetOrdersParams {
   page?: number;
   limit?: number;
-  status?: OrderStatus;
+  status?: OrderStatus | '';
+  sortField?: SortField;
+  sortDir?: SortDir;
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -67,7 +77,7 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   PICKUP_ASSIGNED:  'Pickup',
   ITEMIZED:         'Itemized',
   PROCESSING:       'Brewing',
-  OUT_FOR_DELIVERY: 'Delivering',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
   COMPLETED:        'Delivered',
   CANCELLED:        'Cancelled',
 };
@@ -83,9 +93,11 @@ export const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 export const ordersApi = {
   getOrders: async (params?: GetOrdersParams): Promise<GetOrdersResponse> => {
     const query = new URLSearchParams();
-    if (params?.page)   query.append('page',   params.page.toString());
-    if (params?.limit)  query.append('limit',  params.limit.toString());
-    if (params?.status) query.append('status', params.status);
+    if (params?.page)      query.append('page',   params.page.toString());
+    if (params?.limit)     query.append('limit',  params.limit.toString());
+    if (params?.status)    query.append('status', params.status);
+    if (params?.sortField) query.append('sortField', params.sortField);
+    if (params?.sortDir)   query.append('sortDir',   params.sortDir);
     const qs = query.toString();
     return apiClient(qs ? `/orders?${qs}` : '/orders');
   },

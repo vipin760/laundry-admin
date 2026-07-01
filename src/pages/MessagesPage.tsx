@@ -7,6 +7,8 @@ import {
   MessageCircle,
   RefreshCw,
   Send,
+  XCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import {
@@ -27,6 +29,7 @@ export const MessagesPage: React.FC = () => {
   const [isLoadingInbox, setIsLoadingInbox] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isUserTyping, setIsUserTyping] = useState(false);
@@ -47,6 +50,11 @@ export const MessagesPage: React.FC = () => {
 
   useEffect(() => {
     loadConversations();
+    // Request browser notification permission so we can alert admins about
+    // new support messages even when they're on another tab.
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
   useEffect(() => {
@@ -77,6 +85,19 @@ export const MessagesPage: React.FC = () => {
         appendMessage(result.message);
         setIsUserTyping(false);
         void supportApi.markRead(result.conversation._id).then(upsertConversation);
+      }
+
+      // Browser notification when the message is from a user and the tab is not focused.
+      if (
+        result.message.senderRole !== 'admin' &&
+        document.visibilityState !== 'visible' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        new Notification('New support message', {
+          body: result.message.body ?? 'A user sent a message.',
+          icon: '/favicon.ico',
+        });
       }
     });
     socket.on(
@@ -251,6 +272,34 @@ export const MessagesPage: React.FC = () => {
     });
   }
 
+  async function closeTicket() {
+    if (!selectedId || isClosing) return;
+    setIsClosing(true);
+    setError(null);
+    try {
+      const updated = await supportApi.closeConversation(selectedId);
+      upsertConversation(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to close ticket');
+    } finally {
+      setIsClosing(false);
+    }
+  }
+
+  async function reopenTicket() {
+    if (!selectedId || isClosing) return;
+    setIsClosing(true);
+    setError(null);
+    try {
+      const updated = await supportApi.reopenConversation(selectedId);
+      upsertConversation(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to reopen ticket');
+    } finally {
+      setIsClosing(false);
+    }
+  }
+
   return (
     <AdminLayout>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -352,8 +401,8 @@ export const MessagesPage: React.FC = () => {
         <section className="premium-card !p-0 overflow-hidden flex flex-col min-h-[680px]">
           {selectedConversation ? (
             <>
-              <div className="p-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-                <div>
+              <div className="p-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                     {selectedConversation.user?.name || 'Customer'}
                   </h2>
@@ -366,9 +415,36 @@ export const MessagesPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-black uppercase">
-                  {selectedConversation.status}
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${
+                    selectedConversation.status === 'resolved'
+                      ? 'bg-slate-100 text-slate-500'
+                      : 'bg-emerald-50 text-emerald-600'
+                  }`}>
+                    {selectedConversation.status === 'resolved' ? 'Resolved' : 'Open'}
+                  </span>
+                  {selectedConversation.status === 'open' ? (
+                    <button
+                      onClick={closeTicket}
+                      disabled={isClosing}
+                      title="Close Ticket"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 text-xs font-bold hover:bg-red-100 transition-colors disabled:opacity-50"
+                    >
+                      {isClosing ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+                      Close Ticket
+                    </button>
+                  ) : (
+                    <button
+                      onClick={reopenTicket}
+                      disabled={isClosing}
+                      title="Reopen Ticket"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 text-xs font-bold hover:bg-blue-100 transition-colors disabled:opacity-50"
+                    >
+                      {isClosing ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                      Reopen
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 bg-slate-50/60 dark:bg-black/10">
@@ -415,25 +491,31 @@ export const MessagesPage: React.FC = () => {
                 )}
               </div>
 
-              <form onSubmit={sendMessage} className="p-5 border-t border-slate-100 dark:border-white/5">
-                <div className="flex gap-3">
-                  <input
-                    value={draft}
-                    onChange={(event) => handleDraftChange(event.target.value)}
-                    maxLength={2000}
-                    placeholder="Type a reply..."
-                    className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 focus:ring-1 focus:ring-brand focus:outline-none text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!draft.trim() || isSending}
-                    className="btn-brand disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                    <span>Send</span>
-                  </button>
+              {selectedConversation.status === 'resolved' ? (
+                <div className="p-5 border-t border-slate-100 dark:border-white/5 text-center text-sm text-slate-400 font-semibold">
+                  This ticket is resolved. Reopen it to send more messages.
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={sendMessage} className="p-5 border-t border-slate-100 dark:border-white/5">
+                  <div className="flex gap-3">
+                    <input
+                      value={draft}
+                      onChange={(event) => handleDraftChange(event.target.value)}
+                      maxLength={2000}
+                      placeholder="Type a reply..."
+                      className="flex-1 px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 focus:ring-1 focus:ring-brand focus:outline-none text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!draft.trim() || isSending}
+                      className="btn-brand disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                      <span>Send</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
