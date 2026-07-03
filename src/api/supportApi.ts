@@ -62,4 +62,16 @@ export const supportApi = {
       method: 'PATCH',
     }) as Promise<SupportConversation>;
   },
+
+  async closeConversation(conversationId: string) {
+    return apiClient(`/support/conversations/${conversationId}/close`, {
+      method: 'PATCH',
+    }) as Promise<SupportConversation>;
+  },
+
+  async reopenConversation(conversationId: string) {
+    return apiClient(`/support/conversations/${conversationId}/reopen`, {
+      method: 'PATCH',
+    }) as Promise<SupportConversation>;
+  },
 };

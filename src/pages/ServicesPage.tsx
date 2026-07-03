@@ -1,25 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { useServicesStore } from '../store/useServicesStore';
 import { useDebounce } from '../hooks/useDebounce';
 import { ServiceTableRow } from '../components/ServiceTableRow';
 import { Pagination } from '../components/Pagination';
 import type { LaundryService } from '../api/servicesApi';
-import { Plus, Search, X, Loader2, PackageOpen } from 'lucide-react';
+import { servicesApi } from '../api/servicesApi';
+import { Plus, Search, X, Loader2, PackageOpen, ImagePlus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const ServicesPage: React.FC = () => {
   const { services, total, isLoading, error, fetchServices, addService } = useServicesStore();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
-  
+
   const [page, setPage] = useState(1);
   const limit = 6;
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newService, setNewService] = useState({ name: '', price: 100, description: '', category: '', duration: '' });
+  const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '' });
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchServices({ search: debouncedSearchTerm, page, limit });
@@ -30,16 +39,64 @@ export const ServicesPage: React.FC = () => {
     setPage(1);
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImageUploadError(null);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageUploadError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCloseModal = () => {
+    setIsAddModalOpen(false);
+    setNewService({ name: '', price: 100, description: '', duration: '' });
+    setSelectedCategories([]);
+    handleRemoveImage();
+  };
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
+
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setImageUploadError(null);
+
     try {
-      await addService({ ...newService, price: Number(newService.price) });
-      setIsAddModalOpen(false);
-      setNewService({ name: '', price: 100, description: '', category: '', duration: '' });
+      let imageUrl: string | undefined;
+
+      if (imageFile) {
+        setIsUploadingImage(true);
+        try {
+          const result = await servicesApi.uploadImage(imageFile);
+          imageUrl = result.url;
+        } catch (err: any) {
+          setImageUploadError(err.message || 'Image upload failed');
+          setIsSubmitting(false);
+          setIsUploadingImage(false);
+          return;
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+
+      await addService({ ...newService, price: Number(newService.price), imageUrl, categories: selectedCategories });
+      handleCloseModal();
       setPage(1);
     } catch (err) {
-      // Show error in UI
+      // error shown via store
     } finally {
       setIsSubmitting(false);
     }
@@ -63,7 +120,7 @@ export const ServicesPage: React.FC = () => {
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Services</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Configure and manage laundry offerings</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-indigo-600 transition-colors" />
@@ -75,8 +132,8 @@ export const ServicesPage: React.FC = () => {
               className="pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full md:w-64 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all shadow-sm"
             />
           </div>
-          <button 
-            className="btn-premium whitespace-nowrap" 
+          <button
+            className="btn-premium whitespace-nowrap"
             onClick={() => setIsAddModalOpen(true)}
           >
             <Plus size={20} />
@@ -86,7 +143,7 @@ export const ServicesPage: React.FC = () => {
       </div>
 
       {error && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 p-4 bg-red-50 dark:bg-red-500/10 text-red-600 border border-red-100 dark:border-red-500/20 rounded-2xl font-semibold flex items-center gap-3"
@@ -129,7 +186,7 @@ export const ServicesPage: React.FC = () => {
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 dark:text-white">No services found</h3>
                       <p className="text-slate-500 max-w-xs mx-auto">It seems you haven't added any services yet. Create your first offering to get started.</p>
-                      <button 
+                      <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="btn-ghost mt-2"
                       >
@@ -140,11 +197,11 @@ export const ServicesPage: React.FC = () => {
                 </tr>
               ) : (
                 services.map((service) => (
-                  <ServiceTableRow 
-                    key={service._id} 
-                    service={service} 
-                    onEdit={handleEdit} 
-                    onDelete={handleDelete} 
+                  <ServiceTableRow
+                    key={service._id}
+                    service={service}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
                   />
                 ))
               )}
@@ -169,18 +226,18 @@ export const ServicesPage: React.FC = () => {
       <AnimatePresence>
         {isAddModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsAddModalOpen(false)}
+              onClick={handleCloseModal}
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-xl shadow-2xl overflow-hidden"
+              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
               <div className="flex justify-between items-center mb-8">
@@ -188,16 +245,77 @@ export const ServicesPage: React.FC = () => {
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Create New Service</h2>
                   <p className="text-slate-500 text-sm mt-1">Define the details for your new laundry service</p>
                 </div>
-                <button 
-                  onClick={() => setIsAddModalOpen(false)} 
+                <button
+                  onClick={handleCloseModal}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400"
                 >
                   <X size={24} />
                 </button>
               </div>
-              
+
               <form onSubmit={handleAddService} className="space-y-6">
                 <div className="space-y-4">
+
+                  {/* ── Service Image Upload ── */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      Service Image <span className="text-slate-300 normal-case font-medium">(optional)</span>
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageChange}
+                    />
+
+                    {imagePreview ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group">
+                        <img
+                          src={imagePreview}
+                          alt="Service preview"
+                          className="w-full h-40 object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 bg-white/90 rounded-xl text-slate-700 hover:bg-white transition-colors"
+                            title="Change image"
+                          >
+                            <ImagePlus size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="p-2 bg-red-500/90 rounded-xl text-white hover:bg-red-500 transition-colors"
+                            title="Remove image"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full h-32 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors group"
+                      >
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 transition-colors">
+                          <ImagePlus size={22} />
+                        </div>
+                        <span className="text-sm font-semibold">Click to upload image</span>
+                        <span className="text-xs">PNG, JPG, WEBP up to 10MB</span>
+                      </button>
+                    )}
+
+                    {imageUploadError && (
+                      <p className="mt-2 text-xs text-red-500 font-semibold flex items-center gap-1">
+                        <X size={12} /> {imageUploadError}
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Name</label>
                     <input
@@ -209,27 +327,67 @@ export const ServicesPage: React.FC = () => {
                       onChange={(e) => setNewService({ ...newService, name: e.target.value })}
                     />
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Base Price (₹)</label>
-                      <input
-                        type="number"
-                        required
-                        className="input-premium"
-                        value={newService.price}
-                        onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Category</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Ironing"
-                        className="input-premium"
-                        value={newService.category}
-                        onChange={(e) => setNewService({ ...newService, category: e.target.value })}
-                      />
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Base Price (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      className="input-premium"
+                      value={newService.price}
+                      onChange={(e) => setNewService({ ...newService, price: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  {/* ── Category checkboxes ── */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3">
+                      Category <span className="text-slate-300 normal-case font-medium">(select one or both)</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(['instant', 'scheduled'] as const).map((cat) => {
+                        const checked = selectedCategories.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleCategory(cat)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all text-left ${
+                              checked
+                                ? cat === 'instant'
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+                                  : 'border-orange-500 bg-orange-50 dark:bg-orange-500/10'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                              checked
+                                ? cat === 'instant'
+                                  ? 'border-blue-500 bg-blue-500'
+                                  : 'border-orange-500 bg-orange-500'
+                                : 'border-slate-300 dark:border-slate-600'
+                            }`}>
+                              {checked && (
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-bold capitalize ${
+                                checked
+                                  ? cat === 'instant' ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'
+                                  : 'text-slate-700 dark:text-slate-300'
+                              }`}>
+                                {cat === 'instant' ? '⚡ Instant' : '🕐 Scheduled'}
+                              </p>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                {cat === 'instant' ? 'Same-day pickup & delivery' : 'Book a time slot in advance'}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -255,11 +413,11 @@ export const ServicesPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex gap-4 pt-4">
                   <button
                     type="button"
-                    onClick={() => setIsAddModalOpen(false)}
+                    onClick={handleCloseModal}
                     className="flex-1 btn-ghost"
                     disabled={isSubmitting}
                   >
@@ -270,7 +428,12 @@ export const ServicesPage: React.FC = () => {
                     className="flex-1 btn-premium justify-center"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Service'}
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {isUploadingImage ? 'Uploading image…' : 'Creating…'}
+                      </span>
+                    ) : 'Create Service'}
                   </button>
                 </div>
               </form>

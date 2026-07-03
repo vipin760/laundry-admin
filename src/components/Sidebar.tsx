@@ -1,16 +1,18 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Zap, 
-  LogOut, 
-  Users2,
+import brandLogo from '../assets/laudry_brew_icon.png';
+import {
+  LayoutDashboard,
+  Users,
+  Zap,
+  LogOut,
   Package,
   ChevronRight,
   User,
-  MessageCircle
+  MessageCircle,
+  MapPin,
+  Clock,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -34,12 +36,8 @@ export const Sidebar: React.FC = () => {
       items: [
         { to: '/users', icon: Users, label: 'Users' },
         { to: '/services', icon: Zap, label: 'Services' },
-      ]
-    },
-    {
-      title: 'Customers',
-      items: [
-        { to: '/customers', icon: Users2, label: 'Customers' },
+        { to: '/locations', icon: MapPin, label: 'Locations' },
+        { to: '/time-slots', icon: Clock, label: 'Time Slots' },
       ]
     },
     {
@@ -61,11 +59,11 @@ export const Sidebar: React.FC = () => {
       {/* Brand Header */}
       <div className="p-6 flex items-center gap-3">
         <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-          <Zap className="text-white w-5 h-5 fill-current" />
+          <img src={brandLogo} alt="Brand Logo" className="w-full h-full object-contain" />
         </div>
         <div>
           <h1 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-none">
-            VeltroxCRM
+            Laundry Brew
           </h1>
           <p className="text-[10px] text-slate-500 mt-1">Manage everything in one place</p>
         </div>
