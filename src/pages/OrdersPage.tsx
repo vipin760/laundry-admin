@@ -16,9 +16,11 @@ import {
 
   Phone, User, Scale, Receipt, ShieldCheck, Filter,
 
-  ArrowUpDown, ArrowUp, ArrowDown, CreditCard, KeyRound,
+  ArrowUpDown, ArrowUp, ArrowDown, CreditCard, KeyRound, Printer,
 
 } from 'lucide-react';
+
+import { printOrder } from '../utils/printOrder';
 
 import type { Order, OrderStatus, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
 
@@ -457,13 +459,23 @@ const OrderDetailPanel: React.FC<{
 
           </div>
 
-          <button onClick={onClose}
+          <div className="flex items-center gap-2">
 
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 transition-colors">
+            <button onClick={() => printOrder(order)}
+              title="Print / download order"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 transition-colors">
+              <Printer size={15} className="text-blue-600" />
+            </button>
 
-            <X size={16} className="text-slate-600 dark:text-slate-300" />
+            <button onClick={onClose}
 
-          </button>
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 transition-colors">
+
+              <X size={16} className="text-slate-600 dark:text-slate-300" />
+
+            </button>
+
+          </div>
 
         </div>
 
@@ -1624,7 +1636,18 @@ export const OrdersPage: React.FC = () => {
 
                       <td className="px-5 py-4">
 
-                        <button className="text-xs font-bold text-blue-600 hover:underline">Details →</button>
+                        <div className="flex items-center gap-3">
+
+                          <button
+                            onClick={(e) => { e.stopPropagation(); printOrder(order); }}
+                            title="Print / download order"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors">
+                            <Printer size={15} />
+                          </button>
+
+                          <button className="text-xs font-bold text-blue-600 hover:underline">Details →</button>
+
+                        </div>
 
                       </td>
 
