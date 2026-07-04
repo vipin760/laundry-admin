@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, BASE_URL } from './client';
 
 export type OrderStatus =
   | 'ORDER_PLACED'
@@ -21,6 +21,17 @@ export interface OrderItem {
   category?: 'instant' | 'scheduled';
 }
 
+export type OrderPhotoType = 'damage' | 'weighing';
+
+export interface OrderPhoto {
+  _id: string;
+  url: string;
+  imageId?: string;
+  /** Only present on damage/findings photos */
+  note?: string;
+  uploadedAt: string;
+}
+
 export interface Order {
   _id: string;
   userId: string;
@@ -41,6 +52,10 @@ export interface Order {
   weightKg?: number;
   itemCount?: number;
   billAmount?: number;
+  /** Findings / damage evidence photos taken at collection */
+  damagePhotos?: OrderPhoto[];
+  /** Weighing scale / bill proof photos */
+  weighingPhotos?: OrderPhoto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -53,7 +68,7 @@ export interface UpdateStatusPayload {
   itemCount?: number;
   billAmount?: number;
   pickupTime?: string;
-  /** OTP required when advancing OUT_FOR_DELIVERY → COMPLETED */
+  /** OTP required when advancing OUT_FOR_DELIVERY to COMPLETED */
   otp?: string;
 }
 
@@ -110,6 +125,46 @@ export const ordersApi = {
     return apiClient(`/orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Upload photos (multipart). type = 'damage' | 'weighing'.
+   * notes - optional array aligned with files (damage only).
+   */
+  uploadOrderPhotos: async (
+    id: string,
+    type: OrderPhotoType,
+    files: File[],
+    notes?: (string | undefined)[],
+  ): Promise<Order> => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    fd.append('type', type);
+    if (notes?.some((n) => n?.trim())) {
+      fd.append('notes', JSON.stringify(notes.map((n) => n ?? '')));
+    }
+    const token = localStorage.getItem('authToken');
+    const res = await fetch(`${BASE_URL}/orders/${id}/photos`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: fd, // browser sets multipart boundary automatically
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Photo upload failed');
+    }
+    return res.json();
+  },
+
+  deleteOrderPhoto: async (
+    id: string,
+    photoId: string,
+    type: OrderPhotoType,
+  ): Promise<Order> => {
+    return apiClient(`/orders/${id}/photos/${photoId}?type=${type}`, {
+      method: 'DELETE',
     });
   },
 };

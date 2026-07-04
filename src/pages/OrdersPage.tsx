@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Order, OrderStatus, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
 import { STATUS_LABELS, NEXT_STATUS } from '../api/ordersApi';
+import { OrderPhotoManager } from '../components/OrderPhotoManager';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
@@ -93,7 +94,8 @@ const OrderDetailPanel: React.FC<{
   order: Order;
   onClose: () => void;
   onUpdated: () => void;
-}> = ({ order, onClose, onUpdated }) => {
+  onOrderChange: (o: Order) => void;
+}> = ({ order, onClose, onUpdated, onOrderChange }) => {
   const { updateStatus } = useOrdersStore();
   const nextStatus = NEXT_STATUS[order.status];
   const [form, setForm] = useState<UpdateForm>({
@@ -266,6 +268,13 @@ const OrderDetailPanel: React.FC<{
             </div>
           )}
 
+          {/* Order photos — findings (damage evidence) + weighing (bill proof) */}
+          <OrderPhotoManager
+            order={order}
+            editable={['PICKUP_ASSIGNED', 'ITEMIZED', 'PROCESSING'].includes(order.status)}
+            onOrderChange={onOrderChange}
+          />
+
           {/* Delivery OTP — visible to admin */}
           {order.deliveryOtp && (
             <div className="rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 p-4">
@@ -323,6 +332,9 @@ const OrderDetailPanel: React.FC<{
                   <Field label="Pickup Time *" icon={<Clock size={14}/>}
                     value={form.pickupTime} onChange={(v) => set('pickupTime', v)}
                     placeholder={order.pickupTime ?? 'e.g. 10:00 AM – 12:00 PM'} required />
+                  <p className="text-[11px] text-slate-500 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2">
+                    📸 Use the photo sections above to attach <b>damage findings</b> (evidence) and the <b>weighing scale</b> photo (bill proof) — the customer sees both in their app.
+                  </p>
                 </div>
               )}
 
@@ -729,6 +741,7 @@ export const OrdersPage: React.FC = () => {
             if (updated) setSelected({ ...updated });
             load();
           }}
+          onOrderChange={(o) => { setSelected(o); load(); }}
         />
       )}
     </AdminLayout>
