@@ -10,7 +10,7 @@ import { Plus, Search, X, Loader2, PackageOpen, ImagePlus, Trash2 } from 'lucide
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const ServicesPage: React.FC = () => {
-  const { services, total, isLoading, error, fetchServices, addService } = useServicesStore();
+  const { services, total, isLoading, error, fetchServices, addService, updateService } = useServicesStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -19,6 +19,8 @@ export const ServicesPage: React.FC = () => {
   const limit = 6;
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '' });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,12 +54,15 @@ export const ServicesPage: React.FC = () => {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setExistingImageUrl(null);
     setImageUploadError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleCloseModal = () => {
     setIsAddModalOpen(false);
+    setEditingId(null);
+    setExistingImageUrl(null);
     setNewService({ name: '', price: 100, description: '', duration: '' });
     setSelectedCategories([]);
     handleRemoveImage();
@@ -92,9 +97,20 @@ export const ServicesPage: React.FC = () => {
         }
       }
 
-      await addService({ ...newService, price: Number(newService.price), imageUrl, categories: selectedCategories });
+      if (editingId) {
+        // Edit mode: PATCH the existing service.
+        // New upload wins; otherwise keep (or clear, if removed) the old image.
+        await updateService(editingId, {
+          ...newService,
+          price: Number(newService.price),
+          imageUrl: imageUrl ?? existingImageUrl ?? '',
+          categories: selectedCategories,
+        });
+      } else {
+        await addService({ ...newService, price: Number(newService.price), imageUrl, categories: selectedCategories });
+        setPage(1);
+      }
       handleCloseModal();
-      setPage(1);
     } catch (err) {
       // error shown via store
     } finally {
@@ -105,11 +121,58 @@ export const ServicesPage: React.FC = () => {
   const totalPages = Math.ceil(total / limit) || 1;
 
   const handleEdit = (service: LaundryService) => {
-    console.log('Edit service', service);
+    setEditingId(service._id);
+    setNewService({
+      name: service.name,
+      price: service.price,
+      description: service.description,
+      duration: service.duration || '',
+    });
+    setSelectedCategories(service.categories ?? []);
+    setExistingImageUrl(service.imageUrl || null);
+    setImagePreview(service.imageUrl || null);
+    setImageFile(null);
+    setImageUploadError(null);
+    setIsAddModalOpen(true);
   };
 
   const handleDelete = (id: string) => {
     console.log('Delete service', id);
+  };
+
+  // ── Popular row controls (home page top-3 cards) ──
+  const handleTogglePopular = async (service: LaundryService) => {
+    const makingPopular = !service.isPopular;
+    if (makingPopular && services.filter(s => s.isPopular).length >= 3) {
+      // Backend enforces this too; fail fast with a friendly message
+      useServicesStore.setState({ error: 'Only 3 services can be popular. Remove one first.' });
+      return;
+    }
+    try {
+      await updateService(service._id, {
+        isPopular: makingPopular,
+        ...(makingPopular
+          ? { popularOrder: Math.min(3, services.filter(s => s.isPopular).length + 1) }
+          : {}),
+      });
+    } catch {
+      // error shown via store
+    }
+  };
+
+  const handleSetPopularOrder = async (service: LaundryService, order: number) => {
+    try {
+      // If another popular service holds this position, swap positions
+      const other = services.find(
+        s => s.isPopular && s._id !== service._id && (s.popularOrder ?? 1) === order,
+      );
+      await updateService(service._id, { popularOrder: order });
+      if (other) {
+        await updateService(other._id, { popularOrder: service.popularOrder ?? 1 });
+      }
+    } catch {
+      // error shown via store
+    }
   };
 
   return (
@@ -164,13 +227,14 @@ export const ServicesPage: React.FC = () => {
                 <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Base Price</th>
                 <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Duration</th>
                 <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Popular</th>
                 <th className="px-6 py-4 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {isLoading && services.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center">
+                  <td colSpan={7} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center gap-4">
                       <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
                       <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Fetching Services...</p>
@@ -179,7 +243,7 @@ export const ServicesPage: React.FC = () => {
                 </tr>
               ) : services.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-24 text-center">
+                  <td colSpan={7} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-4">
                       <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-full">
                         <PackageOpen size={48} className="text-slate-300" />
@@ -202,6 +266,8 @@ export const ServicesPage: React.FC = () => {
                     service={service}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onTogglePopular={handleTogglePopular}
+                    onSetPopularOrder={handleSetPopularOrder}
                   />
                 ))
               )}
@@ -242,8 +308,12 @@ export const ServicesPage: React.FC = () => {
               <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
               <div className="flex justify-between items-center mb-8">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Create New Service</h2>
-                  <p className="text-slate-500 text-sm mt-1">Define the details for your new laundry service</p>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    {editingId ? 'Edit Service' : 'Create New Service'}
+                  </h2>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {editingId ? 'Update the details of this laundry service' : 'Define the details for your new laundry service'}
+                  </p>
                 </div>
                 <button
                   onClick={handleCloseModal}
@@ -431,9 +501,9 @@ export const ServicesPage: React.FC = () => {
                     {isSubmitting ? (
                       <span className="flex items-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        {isUploadingImage ? 'Uploading image…' : 'Creating…'}
+                        {isUploadingImage ? 'Uploading image…' : editingId ? 'Saving…' : 'Creating…'}
                       </span>
-                    ) : 'Create Service'}
+                    ) : editingId ? 'Save Changes' : 'Create Service'}
                   </button>
                 </div>
               </form>

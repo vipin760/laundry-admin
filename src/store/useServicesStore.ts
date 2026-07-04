@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { servicesApi } from '../api/servicesApi';
-import type { LaundryService, GetServicesParams, CreateServicePayload } from '../api/servicesApi';
+import type { LaundryService, GetServicesParams, CreateServicePayload, UpdateServicePayload } from '../api/servicesApi';
 
 interface ServicesState {
   services: LaundryService[];
   total: number;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   fetchServices: (params?: GetServicesParams) => Promise<void>;
   addService: (payload: CreateServicePayload) => Promise<void>;
+  updateService: (id: string, payload: UpdateServicePayload) => Promise<void>;
 }
 
 export const useServicesStore = create<ServicesState>((set) => ({
@@ -47,6 +48,20 @@ export const useServicesStore = create<ServicesState>((set) => ({
     } catch (error: any) {
       set({ error: error.message || 'Failed to add service', isLoading: false });
       throw error; // Let the component handle UI error state if needed
+    }
+  },
+
+  updateService: async (id, payload) => {
+    set({ error: null });
+    try {
+      const updated = await servicesApi.updateService(id, payload);
+      // Patch the row in place — no full refetch, keeps current page/search
+      set((state) => ({
+        services: state.services.map((s) => (s._id === id ? { ...s, ...updated } : s)),
+      }));
+    } catch (error: any) {
+      set({ error: error.message || 'Failed to update service' });
+      throw error;
     }
   }
 }));
