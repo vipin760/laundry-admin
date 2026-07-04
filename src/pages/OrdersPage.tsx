@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Order, OrderStatus, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
 import { STATUS_LABELS, NEXT_STATUS } from '../api/ordersApi';
+import { usersApi, type User as AppUser } from '../api/usersApi';
 import { OrderPhotoManager } from '../components/OrderPhotoManager';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ interface UpdateForm {
   itemCount:   string;
   billAmount:  string;
   pickupTime:  string;
+  deliveryPartnerId: string;
   otp:         string;
 }
 
@@ -105,10 +107,23 @@ const OrderDetailPanel: React.FC<{
     itemCount:   order.itemCount   != null ? String(order.itemCount) : '',
     billAmount:  order.billAmount  != null ? String(order.billAmount): '',
     pickupTime:  order.pickupTime  ?? '',
+    deliveryPartnerId: order.deliveryPartnerId ?? '',
     otp:         '',
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState<string | null>(null);
+
+  // Delivery partners — loaded only when the dispatch step needs them
+  const [partners, setPartners] = useState<AppUser[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
+  useEffect(() => {
+    if (nextStatus !== 'OUT_FOR_DELIVERY') return;
+    setPartnersLoading(true);
+    usersApi.getUsers()
+      .then((users) => setPartners(users.filter((u) => u.role === 'delivery_partner' && u.isActive)))
+      .catch(() => setPartners([]))
+      .finally(() => setPartnersLoading(false));
+  }, [nextStatus]);
 
   const set = (k: keyof UpdateForm, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -120,6 +135,10 @@ const OrderDetailPanel: React.FC<{
         return 'Bill amount is required and must be greater than 0.';
       if (!form.pickupTime.trim() && !order.pickupTime)
         return 'Pickup time is required when itemizing an order.';
+    }
+    if (nextStatus === 'OUT_FOR_DELIVERY') {
+      if (!form.deliveryPartnerId)
+        return 'Please assign a delivery partner before dispatching.';
     }
     if (nextStatus === 'COMPLETED') {
       if (!form.otp.trim()) return 'Please enter the 4-digit OTP to confirm delivery.';
@@ -145,6 +164,11 @@ const OrderDetailPanel: React.FC<{
         payload.pickupTime = form.pickupTime || order.pickupTime;
         if (form.weightKg)  payload.weightKg  = parseFloat(form.weightKg);
         if (form.itemCount) payload.itemCount  = parseInt(form.itemCount);
+      }
+      if (nextStatus === 'OUT_FOR_DELIVERY') {
+        const partner = partners.find((p) => p._id === form.deliveryPartnerId);
+        payload.deliveryPartnerId   = form.deliveryPartnerId;
+        payload.deliveryPartnerName = partner?.name;
       }
       if (nextStatus === 'COMPLETED') {
         payload.otp = form.otp.trim();
@@ -255,6 +279,16 @@ const OrderDetailPanel: React.FC<{
             </div>
           )}
 
+          {/* Assigned delivery partner */}
+          {order.deliveryPartnerName && (
+            <div className="rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20 p-4">
+              <p className="text-xs font-bold text-orange-700 dark:text-orange-400 mb-2 uppercase tracking-wide">Delivery Partner</p>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <Truck size={13}/>{order.deliveryPartnerName}
+              </p>
+            </div>
+          )}
+
           {/* Itemization */}
           {(order.weightKg != null || order.itemCount != null || order.billAmount != null) && (
             <div className="rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 p-4">
@@ -338,14 +372,43 @@ const OrderDetailPanel: React.FC<{
                 </div>
               )}
 
-              {/* PROCESSING → OUT_FOR_DELIVERY: payment must be done */}
+              {/* PROCESSING → OUT_FOR_DELIVERY: payment must be done + partner assigned */}
               {nextStatus === 'OUT_FOR_DELIVERY' && (
                 paymentPending
                   ? <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-semibold">
                       ⚠️ Cannot dispatch — user has not completed payment yet.
                     </div>
-                  : <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">
-                      <ShieldCheck size={13}/> Payment confirmed. Delivery OTP is ready.
+                  : <div className="space-y-3">
+                      <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">
+                        <ShieldCheck size={13}/> Payment confirmed. Delivery OTP is ready.
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                          <Truck size={14}/>Delivery Partner<span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={form.deliveryPartnerId}
+                          onChange={(e) => set('deliveryPartnerId', e.target.value)}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        >
+                          <option value="">
+                            {partnersLoading ? 'Loading partners…' : 'Select a delivery partner'}
+                          </option>
+                          {partners.map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.name}{p.mobileNumber ? ` · ${p.mobileNumber}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {!partnersLoading && partners.length === 0 && (
+                          <p className="text-[11px] text-amber-600 mt-1">
+                            No delivery partners found. Assign the "delivery_partner" role to a user first.
+                          </p>
+                        )}
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          The assigned partner sees this order in their app and enters the customer's OTP on handover.
+                        </p>
+                      </div>
                     </div>
               )}
 

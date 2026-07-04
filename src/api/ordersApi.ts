@@ -49,6 +49,8 @@ export interface Order {
   driverName?: string;
   driverPhone?: string;
   deliveryOtp?: string;
+  deliveryPartnerId?: string;
+  deliveryPartnerName?: string;
   weightKg?: number;
   itemCount?: number;
   billAmount?: number;
@@ -68,6 +70,9 @@ export interface UpdateStatusPayload {
   itemCount?: number;
   billAmount?: number;
   pickupTime?: string;
+  /** Delivery partner assignment — set when advancing PROCESSING to OUT_FOR_DELIVERY */
+  deliveryPartnerId?: string;
+  deliveryPartnerName?: string;
   /** OTP required when advancing OUT_FOR_DELIVERY to COMPLETED */
   otp?: string;
 }
