@@ -1,15 +1,15 @@
 import React from 'react';
-import { 
-  Search, 
-  Bell, 
-  Moon, 
-  Sun, 
-  Globe, 
+import {
+  Search,
+  Moon,
+  Sun,
+  Globe,
   ChevronDown,
   LayoutGrid
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { NotificationBell } from './NotificationBell';
 
 export const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -53,10 +53,7 @@ export const Navbar: React.FC = () => {
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
           </button>
 
-          <button className="p-2 text-slate-400 hover:text-brand relative">
-            <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-brand rounded-full border-2 border-white dark:border-[#0C0C0C]"></span>
-          </button>
+          <NotificationBell />
         </div>
 
         {/* User Profile */}

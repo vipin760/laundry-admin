@@ -1,15 +1,17 @@
 import React from 'react';
 import type { LaundryService } from '../api/servicesApi';
 import { Badge } from './Badge';
-import { Edit2, Trash2, Clock } from 'lucide-react';
+import { Edit2, Trash2, Clock, Star } from 'lucide-react';
 
 interface ServiceTableRowProps {
   service: LaundryService;
   onEdit: (service: LaundryService) => void;
   onDelete: (id: string) => void;
+  onTogglePopular: (service: LaundryService) => void;
+  onSetPopularOrder: (service: LaundryService, order: number) => void;
 }
 
-export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdit, onDelete }) => {
+export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdit, onDelete, onTogglePopular, onSetPopularOrder }) => {
   const categoryVariant = (cat: string): 'blue' | 'orange' =>
     cat === 'instant' ? 'blue' : 'orange';
 
@@ -25,9 +27,9 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
     <tr className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
       <td className="px-6 py-5 whitespace-nowrap">
         <div className="flex items-center">
-          <div className={`flex-shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800 transition-transform group-hover:scale-110 ${getIconStyles(service.name)}`}>
-             {service.icon ? (
-               <img src={service.icon} alt="" className="h-8 w-8 object-contain" />
+          <div className={`flex-shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800 transition-transform group-hover:scale-110 overflow-hidden ${getIconStyles(service.name)}`}>
+             {service.imageUrl || service.icon ? (
+               <img src={service.imageUrl || service.icon} alt="" className="h-full w-full object-cover" />
              ) : (
                <span className="text-xl font-black">{service.name.charAt(0)}</span>
              )}
@@ -63,11 +65,38 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
         </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
-        <Badge 
-          text={service.isAvailable !== false ? 'Active' : 'Inactive'} 
-          variant={service.isAvailable !== false ? 'green' : 'red'} 
-          dot 
+        <Badge
+          text={service.isAvailable !== false ? 'Active' : 'Inactive'}
+          variant={service.isAvailable !== false ? 'green' : 'red'}
+          dot
         />
+      </td>
+      <td className="px-6 py-5 whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onTogglePopular(service)}
+            title={service.isPopular ? 'Remove from Popular row' : 'Show in Popular row (max 3)'}
+            className={`p-2 rounded-xl transition-all border ${
+              service.isPopular
+                ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20'
+                : 'text-slate-300 border-transparent hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10'
+            }`}
+          >
+            <Star size={16} fill={service.isPopular ? 'currentColor' : 'none'} />
+          </button>
+          {service.isPopular && (
+            <select
+              value={service.popularOrder ?? 1}
+              onChange={(e) => onSetPopularOrder(service, Number(e.target.value))}
+              title="Card position on the home page"
+              className="text-xs font-bold px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            >
+              <option value={1}>1st</option>
+              <option value={2}>2nd</option>
+              <option value={3}>3rd</option>
+            </select>
+          )}
+        </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap text-sm font-medium">
         <div className="flex gap-2">

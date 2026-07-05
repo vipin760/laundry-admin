@@ -10,6 +10,8 @@ export interface LaundryService {
   icon?: string;
   imageUrl?: string;
   isAvailable?: boolean;
+  isPopular?: boolean;
+  popularOrder?: number;
 }
 
 export interface GetServicesParams {
@@ -34,7 +36,11 @@ export interface CreateServicePayload {
   icon?: string;
   imageUrl?: string;
   isAvailable?: boolean;
+  isPopular?: boolean;
+  popularOrder?: number;
 }
+
+export type UpdateServicePayload = Partial<CreateServicePayload>;
 
 export const servicesApi = {
   getServices: async (params?: GetServicesParams): Promise<GetServicesResponse> => {
@@ -52,6 +58,13 @@ export const servicesApi = {
   createService: async (payload: CreateServicePayload): Promise<LaundryService> => {
     return apiClient('/services', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateService: async (id: string, payload: UpdateServicePayload): Promise<LaundryService> => {
+    return apiClient(`/services/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     });
   },
