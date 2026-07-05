@@ -30,6 +30,12 @@ import {
 
   Shirt,
 
+  Gift,
+
+  BarChart3,
+
+  UserX,
+
 } from 'lucide-react';
 
 
@@ -93,6 +99,32 @@ export const Sidebar: React.FC = () => {
       items: [
 
         { to: '/orders', icon: Package, label: 'Orders' },
+
+      ]
+
+    },
+
+    {
+
+      title: 'Refer & Earn',
+
+      items: [
+
+        { to: '/referrals', icon: Gift, label: 'Referrals' },
+
+        { to: '/referrals/analytics', icon: BarChart3, label: 'Analytics' },
+
+      ]
+
+    },
+
+    {
+
+      title: 'Account Deletion',
+
+      items: [
+
+        { to: '/delete-requests', icon: UserX, label: 'Delete Requests' },
 
       ]
 
