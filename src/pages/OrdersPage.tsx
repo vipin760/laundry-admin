@@ -178,6 +178,8 @@ interface UpdateForm {
 
   billAmount:  string;
 
+  overrideAmount: boolean;
+
   pickupTime:  string;
 
   deliveryPartnerId: string;
@@ -220,6 +222,8 @@ const OrderDetailPanel: React.FC<{
     itemCount:   order.itemCount   != null ? String(order.itemCount) : '',
 
     billAmount:  order.billAmount  != null ? String(order.billAmount): '',
+
+    overrideAmount: false,
 
     pickupTime:  order.pickupTime  ?? '',
 
@@ -291,26 +295,38 @@ const OrderDetailPanel: React.FC<{
 
 
 
+  // Amount derived from the cloth-type breakdown (× each type's rate)
+
+  const hasBreakdown = form.clothTypeBreakdown.length > 0;
+
+  const calculatedTotal = form.clothTypeBreakdown.reduce((sum, item) => {
+
+    const ct = clothTypes.find((c) => c._id === item.clothTypeId);
+
+    return sum + parseFloat(item.quantity || '0') * (ct?.rate || 0);
+
+  }, 0);
+
+
+
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validateForm = (): string | null => {
 
     if (nextStatus === 'ITEMIZED') {
 
-      if (form.clothTypeBreakdown.length > 0) {
+      if (hasBreakdown) {
         for (const item of form.clothTypeBreakdown) {
           if (!item.clothTypeId) return 'Please select a cloth type for all items.';
           if (!item.quantity || parseFloat(item.quantity) < 1) return 'Quantity must be at least 1.';
         }
+        if (form.overrideAmount && (!form.billAmount || parseFloat(form.billAmount) <= 0))
+          return 'Override amount must be greater than 0.';
       } else {
         if (!form.billAmount || parseFloat(form.billAmount) <= 0)
 
           return 'Bill amount is required and must be greater than 0.';
       }
-
-      if (!form.pickupTime.trim() && !order.pickupTime)
-
-        return 'Pickup time is required when itemizing an order.';
 
     }
 
@@ -362,20 +378,25 @@ const OrderDetailPanel: React.FC<{
 
       if (nextStatus === 'ITEMIZED') {
 
-        payload.billAmount = parseFloat(form.billAmount);
-
-        payload.pickupTime = form.pickupTime || order.pickupTime;
-
-        if (form.weightKg)  payload.weightKg  = parseFloat(form.weightKg);
-
-        if (form.itemCount) payload.itemCount  = parseInt(form.itemCount);
-
-        if (form.clothTypeBreakdown.length > 0) {
+        if (hasBreakdown) {
           payload.clothTypeBreakdown = form.clothTypeBreakdown.map(item => ({
             clothTypeId: item.clothTypeId,
             quantity: parseInt(item.quantity) || 0,
           }));
+          // Send a manual bill only when overriding; otherwise the backend
+          // uses the calculated amount from the breakdown.
+          if (form.overrideAmount && form.billAmount)
+            payload.billAmount = parseFloat(form.billAmount);
+        } else {
+          payload.billAmount = parseFloat(form.billAmount);
         }
+
+        if (form.pickupTime || order.pickupTime)
+          payload.pickupTime = form.pickupTime || order.pickupTime;
+
+        if (form.weightKg)  payload.weightKg  = parseFloat(form.weightKg);
+
+        if (form.itemCount) payload.itemCount  = parseInt(form.itemCount);
 
       }
 
@@ -759,7 +780,7 @@ const OrderDetailPanel: React.FC<{
 
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
 
-                    ⚠️ Bill amount and pickup time are mandatory before user can pay.
+                    ⚠️ Bill amount is mandatory before the user can pay. Pickup time is optional.
 
                   </p>
 
@@ -859,26 +880,55 @@ const OrderDetailPanel: React.FC<{
                         })}
                         <div className="border-t border-slate-200 dark:border-white/10 pt-1 mt-1 flex justify-between font-bold">
                           <span>Calculated Amount:</span>
-                          <span>₹{form.clothTypeBreakdown.reduce((sum, item) => {
-                            const clothType = clothTypes.find(c => c._id === item.clothTypeId);
-                            return sum + (parseFloat(item.quantity || '0') * (clothType?.rate || 0));
-                          }, 0).toFixed(2)}</span>
+                          <span>₹{calculatedTotal.toFixed(2)}</span>
                         </div>
                       </div>
                     )}
+
+                    {/* Override the calculated amount with a manual bill */}
+                    {hasBreakdown && (
+                      <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={form.overrideAmount}
+                          onChange={(e) =>
+                            setForm(f => ({
+                              ...f,
+                              overrideAmount: e.target.checked,
+                              // Prefill the input with the calculated amount when turning override on
+                              billAmount: e.target.checked
+                                ? (f.billAmount || calculatedTotal.toFixed(2))
+                                : f.billAmount,
+                            }))
+                          }
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        Override calculated amount
+                      </label>
+                    )}
+
+                    {hasBreakdown && !form.overrideAmount && (
+                      <p className="text-[11px] text-slate-500">
+                        The customer will be charged the calculated amount of{' '}
+                        <b className="text-green-700">₹{calculatedTotal.toFixed(2)}</b>.
+                      </p>
+                    )}
                   </div>
 
-                  <Field label="Bill Amount (₹) *" icon={<Receipt size={14}/>}
+                  {/* Manual bill: required when there's no breakdown, or when overriding */}
+                  {(!hasBreakdown || form.overrideAmount) && (
+                    <Field label={hasBreakdown ? 'Override Bill Amount (₹) *' : 'Bill Amount (₹) *'} icon={<Receipt size={14}/>}
 
-                    value={form.billAmount} onChange={(v) => set('billAmount', v)}
+                      value={form.billAmount} onChange={(v) => set('billAmount', v)}
 
-                    placeholder="e.g. 350" type="number" required />
+                      placeholder="e.g. 350" type="number" required />
+                  )}
 
-                  <Field label="Pickup Time *" icon={<Clock size={14}/>}
+                  <Field label="Pickup Time (optional)" icon={<Clock size={14}/>}
 
                     value={form.pickupTime} onChange={(v) => set('pickupTime', v)}
 
-                    placeholder={order.pickupTime ?? 'e.g. 10:00 AM – 12:00 PM'} required />
+                    placeholder={order.pickupTime ?? 'e.g. 10:00 AM – 12:00 PM'} />
 
                   <p className="text-[11px] text-slate-500 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2">
 

@@ -25,4 +25,16 @@ export const notificationsApi = {
   markAdminRead: async (): Promise<{ success: boolean }> => {
     return apiClient('/notifications/admin/read', { method: 'PATCH' });
   },
+
+  markAdminOneRead: async (id: string): Promise<{ success: boolean }> => {
+    return apiClient(`/notifications/admin/${id}/read`, { method: 'PATCH' });
+  },
+
+  deleteAdminOne: async (id: string): Promise<{ success: boolean }> => {
+    return apiClient(`/notifications/admin/${id}`, { method: 'DELETE' });
+  },
+
+  clearAdmin: async (): Promise<{ success: boolean }> => {
+    return apiClient('/notifications/admin', { method: 'DELETE' });
+  },
 };
