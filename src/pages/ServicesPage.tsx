@@ -21,7 +21,7 @@ export const ServicesPage: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-  const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '' });
+  const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,7 +63,7 @@ export const ServicesPage: React.FC = () => {
     setIsAddModalOpen(false);
     setEditingId(null);
     setExistingImageUrl(null);
-    setNewService({ name: '', price: 100, description: '', duration: '' });
+    setNewService({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
     setSelectedCategories([]);
     handleRemoveImage();
   };
@@ -103,11 +103,18 @@ export const ServicesPage: React.FC = () => {
         await updateService(editingId, {
           ...newService,
           price: Number(newService.price),
+          turnaroundHours: Number(newService.turnaroundHours),
           imageUrl: imageUrl ?? existingImageUrl ?? '',
           categories: selectedCategories,
         });
       } else {
-        await addService({ ...newService, price: Number(newService.price), imageUrl, categories: selectedCategories });
+        await addService({
+          ...newService,
+          price: Number(newService.price),
+          turnaroundHours: Number(newService.turnaroundHours),
+          imageUrl,
+          categories: selectedCategories,
+        });
         setPage(1);
       }
       handleCloseModal();
@@ -127,6 +134,7 @@ export const ServicesPage: React.FC = () => {
       price: service.price,
       description: service.description,
       duration: service.duration || '',
+      turnaroundHours: service.turnaroundHours ?? 24,
     });
     setSelectedCategories(service.categories ?? []);
     setExistingImageUrl(service.imageUrl || null);
@@ -470,6 +478,25 @@ export const ServicesPage: React.FC = () => {
                       value={newService.duration}
                       onChange={(e) => setNewService({ ...newService, duration: e.target.value })}
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      Delivery Turnaround (hours)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      placeholder="e.g. 24, or 48 for dry cleaning / shoe cleaning"
+                      className="input-premium"
+                      value={newService.turnaroundHours}
+                      onChange={(e) => setNewService({ ...newService, turnaroundHours: Number(e.target.value) })}
+                    />
+                    <p className="text-xs text-slate-400 mt-1.5">
+                      For Scheduled orders only — how long pickup-to-delivery takes for this service. An order
+                      with multiple services uses the longest one.
+                    </p>
                   </div>
 
                   <div>

@@ -61,7 +61,7 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
       <td className="px-6 py-5 whitespace-nowrap">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <Clock size={14} className="text-slate-400" />
-          {service.duration || '24 - 48 hrs'}
+          {service.duration || `${service.turnaroundHours ?? 24}h delivery`}
         </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">

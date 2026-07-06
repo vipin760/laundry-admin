@@ -7,6 +7,8 @@ export interface LaundryService {
   price: number;
   categories?: string[];
   duration?: string;
+  /** Hours between pickup and delivery for scheduled orders of this service (e.g. 24, 48). Defaults to 24. */
+  turnaroundHours?: number;
   icon?: string;
   imageUrl?: string;
   isAvailable?: boolean;
@@ -33,6 +35,7 @@ export interface CreateServicePayload {
   description: string;
   categories?: string[];
   duration?: string;
+  turnaroundHours?: number;
   icon?: string;
   imageUrl?: string;
   isAvailable?: boolean;
