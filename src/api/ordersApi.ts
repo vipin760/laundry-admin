@@ -1,5 +1,7 @@
 import { apiClient, BASE_URL } from './client';
 
+import type { ClothType } from './clothTypesApi';
+
 
 
 export type OrderStatus =
@@ -116,6 +118,7 @@ export interface Order {
     quantity: number;
     rate: number;
     amount: number;
+    serviceType?: 'instant' | 'scheduled';
   }[];
 
   calculatedAmount?: number;
@@ -153,6 +156,7 @@ export interface UpdateStatusPayload {
   clothTypeBreakdown?: {
     clothTypeId: string;
     quantity: number;
+    serviceType?: 'instant' | 'scheduled';
   }[];
 
   pickupTime?: string;
@@ -283,7 +287,7 @@ export const ordersApi = {
 
 
 
-  getClothTypes: async (): Promise<any[]> => {
+  getClothTypes: async (): Promise<ClothType[]> => {
 
     return apiClient('/cloth-types');
 

@@ -24,6 +24,8 @@ import { printOrder } from '../utils/printOrder';
 
 import type { Order, OrderStatus, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
 
+import type { ClothType } from '../api/clothTypesApi';
+
 import { STATUS_LABELS, NEXT_STATUS, ordersApi } from '../api/ordersApi';
 
 import { usersApi, type User as AppUser } from '../api/usersApi';
@@ -187,6 +189,7 @@ interface UpdateForm {
   clothTypeBreakdown: {
     clothTypeId: string;
     quantity: string;
+    serviceType: 'instant' | 'scheduled' | '';
   }[];
 
 }
@@ -208,6 +211,16 @@ const OrderDetailPanel: React.FC<{
   const { updateStatus } = useOrdersStore();
 
   const nextStatus = NEXT_STATUS[order.status];
+
+  // Which service type(s) this order was actually placed under. The cart
+  // enforces one type per order, but older/seeded orders can carry mixed
+  // categories, so we surface all of them and only auto-fill when unambiguous.
+  const orderCategories = useMemo(() => {
+    const set = new Set((order.items ?? []).map((i) => i.category ?? 'instant'));
+    return Array.from(set) as ('instant' | 'scheduled')[];
+  }, [order.items]);
+  const defaultServiceType: 'instant' | 'scheduled' | '' =
+    orderCategories.length === 1 ? orderCategories[0] : '';
 
   const [form, setForm] = useState<UpdateForm>({
 
@@ -232,6 +245,8 @@ const OrderDetailPanel: React.FC<{
       clothTypeId: item.clothTypeId,
 
       quantity: String(item.quantity),
+
+      serviceType: item.serviceType ?? defaultServiceType,
 
     })) || [],
 
@@ -269,7 +284,7 @@ const OrderDetailPanel: React.FC<{
 
   // Cloth types — loaded only when ITEMIZED step needs them
 
-  const [clothTypes, setClothTypes] = useState<any[]>([]);
+  const [clothTypes, setClothTypes] = useState<ClothType[]>([]);
 
   useEffect(() => {
 
@@ -291,6 +306,14 @@ const OrderDetailPanel: React.FC<{
 
 
 
+  // Rate this cloth type bills at for the given service type, preferring a
+  // discount rate when one is set. Mirrors orders.service.ts on the backend.
+  const getEffectiveRate = (clothType: ClothType | undefined, serviceType: 'instant' | 'scheduled' | ''): number => {
+    if (!clothType || !serviceType) return 0;
+    if (serviceType === 'scheduled') return clothType.discountScheduledRate ?? clothType.scheduledRate;
+    return clothType.discountInstantRate ?? clothType.instantRate;
+  };
+
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validateForm = (): string | null => {
@@ -301,6 +324,7 @@ const OrderDetailPanel: React.FC<{
         for (const item of form.clothTypeBreakdown) {
           if (!item.clothTypeId) return 'Please select a cloth type for all items.';
           if (!item.quantity || parseFloat(item.quantity) < 1) return 'Quantity must be at least 1.';
+          if (!item.serviceType) return 'Please choose Instant or Scheduled for every cloth item.';
         }
       } else {
         if (!form.billAmount || parseFloat(form.billAmount) <= 0)
@@ -374,6 +398,7 @@ const OrderDetailPanel: React.FC<{
           payload.clothTypeBreakdown = form.clothTypeBreakdown.map(item => ({
             clothTypeId: item.clothTypeId,
             quantity: parseInt(item.quantity) || 0,
+            serviceType: item.serviceType || undefined,
           }));
         }
 
@@ -789,13 +814,21 @@ const OrderDetailPanel: React.FC<{
                         type="button"
                         onClick={() => setForm(f => ({
                           ...f,
-                          clothTypeBreakdown: [...f.clothTypeBreakdown, { clothTypeId: '', quantity: '' }]
+                          clothTypeBreakdown: [...f.clothTypeBreakdown, { clothTypeId: '', quantity: '', serviceType: defaultServiceType }]
                         }))}
                         className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
                       >
                         + Add Cloth
                       </button>
                     </div>
+
+                    <p className="text-[11px] text-slate-500">
+                      This order was placed as{' '}
+                      <span className="font-semibold">
+                        {orderCategories.map(c => (c === 'instant' ? 'Instant' : 'Scheduled')).join(' + ')}
+                      </span>
+                      {orderCategories.length > 1 && ' — choose the right pricing per cloth item below.'}
+                    </p>
 
                     {form.clothTypeBreakdown.map((item, idx) => (
                       <div key={idx} className="flex gap-2 items-start">
@@ -812,6 +845,22 @@ const OrderDetailPanel: React.FC<{
                         >
                           <option value="">Select cloth type</option>
                           {clothTypes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                        </select>
+
+                        <select
+                          value={item.serviceType}
+                          onChange={(e) => {
+                            setForm(f => {
+                              const newBreakdown = [...f.clothTypeBreakdown];
+                              newBreakdown[idx] = { ...newBreakdown[idx], serviceType: e.target.value as 'instant' | 'scheduled' | '' };
+                              return { ...f, clothTypeBreakdown: newBreakdown };
+                            });
+                          }}
+                          className="w-24 px-2 py-1.5 text-xs rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5"
+                        >
+                          <option value="">Type</option>
+                          <option value="instant">Instant</option>
+                          <option value="scheduled">Scheduled</option>
                         </select>
 
                         <input
@@ -848,11 +897,11 @@ const OrderDetailPanel: React.FC<{
                       <div className="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-2 rounded">
                         {form.clothTypeBreakdown.map((item, idx) => {
                           const clothType = clothTypes.find(c => c._id === item.clothTypeId);
-                          const rate = clothType?.rate || 0;
+                          const rate = getEffectiveRate(clothType, item.serviceType);
                           const amount = parseFloat(item.quantity || '0') * rate;
                           return (
                             <div key={idx} className="flex justify-between">
-                              <span>{clothType?.name}: {item.quantity} × ₹{rate}</span>
+                              <span>{clothType?.name ?? '—'} ({item.serviceType || '—'}): {item.quantity || 0} × ₹{rate}</span>
                               <span className="font-semibold">₹{amount.toFixed(2)}</span>
                             </div>
                           );
@@ -861,7 +910,7 @@ const OrderDetailPanel: React.FC<{
                           <span>Calculated Amount:</span>
                           <span>₹{form.clothTypeBreakdown.reduce((sum, item) => {
                             const clothType = clothTypes.find(c => c._id === item.clothTypeId);
-                            return sum + (parseFloat(item.quantity || '0') * (clothType?.rate || 0));
+                            return sum + (parseFloat(item.quantity || '0') * getEffectiveRate(clothType, item.serviceType));
                           }, 0).toFixed(2)}</span>
                         </div>
                       </div>
