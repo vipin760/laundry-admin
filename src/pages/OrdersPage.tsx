@@ -22,11 +22,11 @@ import {
 
 import { printOrder } from '../utils/printOrder';
 
-import type { Order, OrderStatus, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
+import type { Order, OrderStatus, DeliveryType, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
 
 import type { ClothType } from '../api/clothTypesApi';
 
-import { STATUS_LABELS, NEXT_STATUS, ordersApi } from '../api/ordersApi';
+import { STATUS_LABELS, getNextStatus, ordersApi } from '../api/ordersApi';
 
 import { usersApi, type User as AppUser } from '../api/usersApi';
 
@@ -49,6 +49,8 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   PROCESSING:       'bg-cyan-50  text-cyan-700   border-cyan-200',
 
   OUT_FOR_DELIVERY: 'bg-orange-50 text-orange-700 border-orange-200',
+
+  READY_FOR_PICKUP: 'bg-orange-50 text-orange-700 border-orange-200',
 
   COMPLETED:        'bg-green-50 text-green-700  border-green-200',
 
@@ -92,25 +94,47 @@ const STEPS: { key: OrderStatus; label: string }[] = [
 
 
 
+// Self-pickup orders never reach OUT_FOR_DELIVERY — step 5 becomes "Ready
+// for Pickup" and the final label reads "Picked Up" instead of "Delivered".
+const SELF_PICKUP_STEPS: { key: OrderStatus; label: string }[] = [
+
+  { key: 'ORDER_PLACED',     label: 'Confirmed' },
+
+  { key: 'PICKUP_ASSIGNED',  label: 'Pickup'    },
+
+  { key: 'ITEMIZED',         label: 'Itemized'  },
+
+  { key: 'PROCESSING',       label: 'Brewing'   },
+
+  { key: 'READY_FOR_PICKUP', label: 'Ready for Pickup' },
+
+  { key: 'COMPLETED',        label: 'Picked Up' },
+
+];
+
+
+
 const STEP_INDEX: Partial<Record<OrderStatus, number>> = {
 
   ORDER_PLACED: 0, PICKUP_ASSIGNED: 1, ITEMIZED: 2,
 
-  PROCESSING: 3, OUT_FOR_DELIVERY: 4, COMPLETED: 5,
+  PROCESSING: 3, OUT_FOR_DELIVERY: 4, READY_FOR_PICKUP: 4, COMPLETED: 5,
 
 };
 
 
 
-const TrackingStepper: React.FC<{ status: OrderStatus }> = ({ status }) => {
+const TrackingStepper: React.FC<{ status: OrderStatus; deliveryType?: DeliveryType }> = ({ status, deliveryType }) => {
 
   const current = STEP_INDEX[status] ?? 0;
+
+  const steps = deliveryType === 'SELF_PICKUP' ? SELF_PICKUP_STEPS : STEPS;
 
   return (
 
     <div className="flex items-center gap-0 w-full mb-6">
 
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
 
         const done   = i < current;
 
@@ -144,7 +168,7 @@ const TrackingStepper: React.FC<{ status: OrderStatus }> = ({ status }) => {
 
             </div>
 
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
 
               <div className={`flex-1 h-0.5 mx-0.5 mb-5 ${i < current ? 'bg-blue-600' : 'bg-slate-200'}`} />
 
@@ -210,7 +234,7 @@ const OrderDetailPanel: React.FC<{
 
   const { updateStatus } = useOrdersStore();
 
-  const nextStatus = NEXT_STATUS[order.status];
+  const nextStatus = getNextStatus(order);
 
   // Which service type(s) this order was actually placed under. The cart
   // enforces one type per order, but older/seeded orders can carry mixed
@@ -510,7 +534,7 @@ const OrderDetailPanel: React.FC<{
 
           {/* Stepper */}
 
-          <TrackingStepper status={order.status} />
+          <TrackingStepper status={order.status} deliveryType={order.deliveryType} />
 
 
 
@@ -603,6 +627,31 @@ const OrderDetailPanel: React.FC<{
               </Row>
 
             )}
+
+            <Row icon={<Package size={14} />} label="Return">
+
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                order.deliveryType === 'SELF_PICKUP'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-orange-50 text-orange-700 border-orange-200'
+              }`}>
+                {order.deliveryType === 'SELF_PICKUP' ? 'Self Pickup' : 'Home Delivery'}
+              </span>
+
+              {order.deliveryType !== 'SELF_PICKUP' && order.deliveryAddress && (
+                <span className="ml-2 text-xs text-slate-500">
+                  {[
+                    order.deliveryAddress.houseNo,
+                    order.deliveryAddress.buildingName,
+                    order.deliveryAddress.street,
+                    order.deliveryAddress.area,
+                    order.deliveryAddress.city,
+                    order.deliveryAddress.pincode,
+                  ].filter(Boolean).join(', ')}
+                </span>
+              )}
+
+            </Row>
 
             {(order.pickupDate || order.pickupTime) && (
 
@@ -1021,7 +1070,30 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* OUT_FOR_DELIVERY → COMPLETED: admin must enter OTP */}
+              {/* PROCESSING → READY_FOR_PICKUP: self-pickup orders — payment must be
+                  done, no driver/partner assignment needed. */}
+
+              {nextStatus === 'READY_FOR_PICKUP' && (
+
+                paymentPending
+
+                  ? <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-semibold">
+
+                      ⚠️ Cannot mark ready — user has not completed payment yet.
+
+                    </div>
+
+                  : <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">
+
+                      <ShieldCheck size={13}/> Payment confirmed. Delivery OTP is ready — the customer will show it at the counter.
+
+                    </div>
+
+              )}
+
+
+
+              {/* OUT_FOR_DELIVERY/READY_FOR_PICKUP → COMPLETED: admin must enter OTP */}
 
               {nextStatus === 'COMPLETED' && (
 
@@ -1031,7 +1103,9 @@ const OrderDetailPanel: React.FC<{
 
                     <KeyRound size={13} className="text-blue-500"/>
 
-                    Enter the 4-digit OTP from the customer to confirm delivery.
+                    {order.deliveryType === 'SELF_PICKUP'
+                      ? 'Enter the 4-digit OTP the customer shows you at the counter.'
+                      : 'Enter the 4-digit OTP from the customer to confirm delivery.'}
 
                   </p>
 
@@ -1059,9 +1133,9 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* Disable OUT_FOR_DELIVERY advance if payment pending */}
+              {/* Disable OUT_FOR_DELIVERY/READY_FOR_PICKUP advance if payment pending */}
 
-              {!(nextStatus === 'OUT_FOR_DELIVERY' && paymentPending) && (
+              {!((nextStatus === 'OUT_FOR_DELIVERY' || nextStatus === 'READY_FOR_PICKUP') && paymentPending) && (
 
                 <button onClick={handleAdvance} disabled={saving}
 
@@ -1262,6 +1336,8 @@ const ALL_STATUSES: Array<{ value: OrderStatus | ''; label: string }> = [
   { value: 'PROCESSING',      label: 'Brewing'          },
 
   { value: 'OUT_FOR_DELIVERY',label: 'Out for Delivery' },
+
+  { value: 'READY_FOR_PICKUP',label: 'Ready for Pickup' },
 
   { value: 'COMPLETED',       label: 'Delivered'        },
 

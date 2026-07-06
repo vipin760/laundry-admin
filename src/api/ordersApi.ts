@@ -16,9 +16,30 @@ export type OrderStatus =
 
   | 'OUT_FOR_DELIVERY'
 
+  | 'READY_FOR_PICKUP'
+
   | 'COMPLETED'
 
   | 'CANCELLED';
+
+
+
+export type DeliveryType = 'HOME_DELIVERY' | 'SELF_PICKUP';
+
+
+
+export interface DeliveryAddress {
+  houseNo?: string;
+  buildingName?: string;
+  street?: string;
+  area?: string;
+  landmark?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  lat?: number;
+  lng?: number;
+}
 
 
 
@@ -85,6 +106,14 @@ export interface Order {
   paymentStatus: string;
 
   address?: string;
+
+  /** How the finished order gets back to the customer. Defaults to HOME_DELIVERY. */
+
+  deliveryType?: DeliveryType;
+
+  /** Return-delivery address — only set/used when deliveryType is HOME_DELIVERY. */
+
+  deliveryAddress?: DeliveryAddress;
 
   pickupDate?: string;
 
@@ -217,6 +246,8 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
 
   OUT_FOR_DELIVERY: 'Out for Delivery',
 
+  READY_FOR_PICKUP: 'Ready for Pickup',
+
   COMPLETED:        'Delivered',
 
   CANCELLED:        'Cancelled',
@@ -237,7 +268,24 @@ export const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 
   OUT_FOR_DELIVERY: 'COMPLETED',
 
+  READY_FOR_PICKUP: 'COMPLETED',
+
 };
+
+
+
+/**
+ * Resolves the next status for an order, branching PROCESSING on the order's
+ * deliveryType: SELF_PICKUP orders go to READY_FOR_PICKUP instead of
+ * OUT_FOR_DELIVERY, so the admin never sees "Advance to: Out for Delivery"
+ * for an order the customer intends to collect themselves.
+ */
+export function getNextStatus(order: Order): OrderStatus | undefined {
+  if (order.status === 'PROCESSING') {
+    return order.deliveryType === 'SELF_PICKUP' ? 'READY_FOR_PICKUP' : 'OUT_FOR_DELIVERY';
+  }
+  return NEXT_STATUS[order.status];
+}
 
 
 
