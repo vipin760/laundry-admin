@@ -1,11 +1,24 @@
 import { apiClient } from './client';
 
+export type ClothTypeCategory = 'ironing' | 'shoeCleaning' | 'dryCleaning';
+export type ClothTypeSubcategory =
+  | 'unisex'
+  | 'men'
+  | 'women'
+  | 'kids'
+  | 'household'
+  | 'delicate';
+
 export interface ClothType {
   _id: string;
   name: string;
-  rate: number;
+  instantRate: number;
+  scheduledRate: number;
+  discountInstantRate?: number;
+  discountScheduledRate?: number;
   description?: string;
-  category?: string;
+  category?: ClothTypeCategory;
+  subcategory?: ClothTypeSubcategory;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -13,17 +26,25 @@ export interface ClothType {
 
 export interface CreateClothTypeDto {
   name: string;
-  rate: number;
+  instantRate: number;
+  scheduledRate: number;
+  discountInstantRate?: number;
+  discountScheduledRate?: number;
   description?: string;
-  category?: string;
+  category?: ClothTypeCategory;
+  subcategory?: ClothTypeSubcategory;
   isActive?: boolean;
 }
 
 export interface UpdateClothTypeDto {
   name?: string;
-  rate?: number;
+  instantRate?: number;
+  scheduledRate?: number;
+  discountInstantRate?: number;
+  discountScheduledRate?: number;
   description?: string;
-  category?: string;
+  category?: ClothTypeCategory;
+  subcategory?: ClothTypeSubcategory;
   isActive?: boolean;
 }
 
