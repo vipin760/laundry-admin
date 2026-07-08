@@ -9,6 +9,9 @@ const CATEGORY_LABELS: Record<ClothTypeCategory, string> = {
   ironing: 'Ironing',
   shoeCleaning: 'Shoe Cleaning',
   dryCleaning: 'Dry Cleaning',
+  washFold: 'Wash & Fold',
+  washIron: 'Wash & Iron',
+  membership: 'Membership',
 };
 
 const SUBCATEGORY_LABELS: Record<ClothTypeSubcategory, string> = {
@@ -18,6 +21,11 @@ const SUBCATEGORY_LABELS: Record<ClothTypeSubcategory, string> = {
   kids: 'Kids',
   household: 'Household',
   delicate: 'Delicate',
+  package: 'Package',
+  plan: 'Plan',
+  ironPass: 'Iron Pass',
+  smartPass: 'Smart Pass',
+  combo: 'Combo',
 };
 
 interface ClothTypeFormData {
@@ -30,6 +38,9 @@ interface ClothTypeFormData {
   category: ClothTypeCategory | '';
   subcategory: ClothTypeSubcategory | '';
   isActive: boolean;
+  includesText: string;
+  excludedItemsText: string;
+  validityDays?: number;
 }
 
 const emptyFormData: ClothTypeFormData = {
@@ -42,6 +53,17 @@ const emptyFormData: ClothTypeFormData = {
   category: '',
   subcategory: '',
   isActive: true,
+  includesText: '',
+  excludedItemsText: '',
+  validityDays: undefined,
+};
+
+const splitCommaList = (value: string): string[] | undefined => {
+  const items = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : undefined;
 };
 
 function RateCell({ label, rate, discountRate }: { label: string; rate: number; discountRate?: number }) {
@@ -83,8 +105,11 @@ export const ClothTypesPage: React.FC = () => {
     ct.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const isSmartPass = formData.category === 'membership' && formData.subcategory === 'smartPass';
+
   const isFormValid = () => {
-    if (!formData.name.trim() || formData.instantRate <= 0 || formData.scheduledRate <= 0) return false;
+    if (!formData.name.trim()) return false;
+    if (!isSmartPass && (formData.instantRate <= 0 || formData.scheduledRate <= 0)) return false;
     if (formData.category && formData.category !== 'shoeCleaning' && !formData.subcategory) return false;
     if (showDiscount) {
       if (formData.discountInstantRate != null && formData.discountInstantRate >= formData.instantRate) return false;
@@ -103,6 +128,9 @@ export const ClothTypesPage: React.FC = () => {
     category: formData.category || undefined,
     subcategory: formData.category !== 'shoeCleaning' ? (formData.subcategory || undefined) : undefined,
     isActive: formData.isActive,
+    includes: isSmartPass ? splitCommaList(formData.includesText) : undefined,
+    excludedItems: isSmartPass ? splitCommaList(formData.excludedItemsText) : undefined,
+    validityDays: isSmartPass ? formData.validityDays : undefined,
   });
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -132,6 +160,9 @@ export const ClothTypesPage: React.FC = () => {
       category: clothType.category || '',
       subcategory: clothType.subcategory || '',
       isActive: clothType.isActive,
+      includesText: (clothType.includes || []).join(', '),
+      excludedItemsText: (clothType.excludedItems || []).join(', '),
+      validityDays: clothType.validityDays,
     });
     setShowDiscount(clothType.discountInstantRate != null || clothType.discountScheduledRate != null);
     setIsEditModalOpen(true);
@@ -242,32 +273,77 @@ export const ClothTypesPage: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Instant Rate (₹) *</label>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+            Instant Rate (₹){!isSmartPass && ' *'}
+          </label>
           <input
             type="number"
-            required
-            min="0.01"
+            required={!isSmartPass}
+            min={isSmartPass ? '0' : '0.01'}
             step="0.01"
-            placeholder="e.g. 20.00"
+            placeholder={isSmartPass ? 'Not applicable' : 'e.g. 20.00'}
             className="input-premium"
             value={formData.instantRate}
             onChange={(e) => setFormData({ ...formData, instantRate: parseFloat(e.target.value) || 0 })}
           />
         </div>
         <div>
-          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Scheduled Rate (₹) *</label>
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+            Scheduled Rate (₹){!isSmartPass && ' *'}
+          </label>
           <input
             type="number"
-            required
-            min="0.01"
+            required={!isSmartPass}
+            min={isSmartPass ? '0' : '0.01'}
             step="0.01"
-            placeholder="e.g. 16.00"
+            placeholder={isSmartPass ? 'Not applicable' : 'e.g. 16.00'}
             className="input-premium"
             value={formData.scheduledRate}
             onChange={(e) => setFormData({ ...formData, scheduledRate: parseFloat(e.target.value) || 0 })}
           />
         </div>
       </div>
+
+      {isSmartPass && (
+        <div className="space-y-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Smart Pass Details</label>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Includes (comma-separated)</label>
+            <input
+              type="text"
+              placeholder="e.g. Wash & Fold, Wash & Iron, Ironing"
+              className="input-premium"
+              value={formData.includesText}
+              onChange={(e) => setFormData({ ...formData, includesText: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Excluded Items (comma-separated)</label>
+            <input
+              type="text"
+              placeholder="e.g. Blazer, Jacket, Saree"
+              className="input-premium"
+              value={formData.excludedItemsText}
+              onChange={(e) => setFormData({ ...formData, excludedItemsText: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Validity (days)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="e.g. 30"
+              className="input-premium"
+              value={formData.validityDays ?? ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                validityDays: e.target.value === '' ? undefined : parseInt(e.target.value, 10) || 0,
+              })}
+            />
+          </div>
+        </div>
+      )}
 
       {!showDiscount ? (
         <button

@@ -1,13 +1,24 @@
 import { apiClient } from './client';
 
-export type ClothTypeCategory = 'ironing' | 'shoeCleaning' | 'dryCleaning';
+export type ClothTypeCategory =
+  | 'ironing'
+  | 'shoeCleaning'
+  | 'dryCleaning'
+  | 'washFold'
+  | 'washIron'
+  | 'membership';
 export type ClothTypeSubcategory =
   | 'unisex'
   | 'men'
   | 'women'
   | 'kids'
   | 'household'
-  | 'delicate';
+  | 'delicate'
+  | 'package'
+  | 'plan'
+  | 'ironPass'
+  | 'smartPass'
+  | 'combo';
 
 export interface ClothType {
   _id: string;
@@ -20,6 +31,9 @@ export interface ClothType {
   category?: ClothTypeCategory;
   subcategory?: ClothTypeSubcategory;
   isActive: boolean;
+  includes?: string[];
+  excludedItems?: string[];
+  validityDays?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +48,9 @@ export interface CreateClothTypeDto {
   category?: ClothTypeCategory;
   subcategory?: ClothTypeSubcategory;
   isActive?: boolean;
+  includes?: string[];
+  excludedItems?: string[];
+  validityDays?: number;
 }
 
 export interface UpdateClothTypeDto {
@@ -46,6 +63,9 @@ export interface UpdateClothTypeDto {
   category?: ClothTypeCategory;
   subcategory?: ClothTypeSubcategory;
   isActive?: boolean;
+  includes?: string[];
+  excludedItems?: string[];
+  validityDays?: number;
 }
 
 export const clothTypesApi = {
