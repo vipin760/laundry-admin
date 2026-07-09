@@ -22,9 +22,11 @@ import {
 
 import { printOrder } from '../utils/printOrder';
 
-import type { Order, OrderStatus, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
+import type { Order, OrderStatus, DeliveryType, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
 
-import { STATUS_LABELS, NEXT_STATUS, ordersApi } from '../api/ordersApi';
+import type { ClothType } from '../api/clothTypesApi';
+
+import { STATUS_LABELS, getNextStatus, ordersApi } from '../api/ordersApi';
 
 import { usersApi, type User as AppUser } from '../api/usersApi';
 
@@ -47,6 +49,8 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   PROCESSING:       'bg-cyan-50  text-cyan-700   border-cyan-200',
 
   OUT_FOR_DELIVERY: 'bg-orange-50 text-orange-700 border-orange-200',
+
+  READY_FOR_PICKUP: 'bg-orange-50 text-orange-700 border-orange-200',
 
   COMPLETED:        'bg-green-50 text-green-700  border-green-200',
 
@@ -90,25 +94,47 @@ const STEPS: { key: OrderStatus; label: string }[] = [
 
 
 
+// Self-pickup orders never reach OUT_FOR_DELIVERY — step 5 becomes "Ready
+// for Pickup" and the final label reads "Picked Up" instead of "Delivered".
+const SELF_PICKUP_STEPS: { key: OrderStatus; label: string }[] = [
+
+  { key: 'ORDER_PLACED',     label: 'Confirmed' },
+
+  { key: 'PICKUP_ASSIGNED',  label: 'Pickup'    },
+
+  { key: 'ITEMIZED',         label: 'Itemized'  },
+
+  { key: 'PROCESSING',       label: 'Brewing'   },
+
+  { key: 'READY_FOR_PICKUP', label: 'Ready for Pickup' },
+
+  { key: 'COMPLETED',        label: 'Picked Up' },
+
+];
+
+
+
 const STEP_INDEX: Partial<Record<OrderStatus, number>> = {
 
   ORDER_PLACED: 0, PICKUP_ASSIGNED: 1, ITEMIZED: 2,
 
-  PROCESSING: 3, OUT_FOR_DELIVERY: 4, COMPLETED: 5,
+  PROCESSING: 3, OUT_FOR_DELIVERY: 4, READY_FOR_PICKUP: 4, COMPLETED: 5,
 
 };
 
 
 
-const TrackingStepper: React.FC<{ status: OrderStatus }> = ({ status }) => {
+const TrackingStepper: React.FC<{ status: OrderStatus; deliveryType?: DeliveryType }> = ({ status, deliveryType }) => {
 
   const current = STEP_INDEX[status] ?? 0;
+
+  const steps = deliveryType === 'SELF_PICKUP' ? SELF_PICKUP_STEPS : STEPS;
 
   return (
 
     <div className="flex items-center gap-0 w-full mb-6">
 
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
 
         const done   = i < current;
 
@@ -142,7 +168,7 @@ const TrackingStepper: React.FC<{ status: OrderStatus }> = ({ status }) => {
 
             </div>
 
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
 
               <div className={`flex-1 h-0.5 mx-0.5 mb-5 ${i < current ? 'bg-blue-600' : 'bg-slate-200'}`} />
 
@@ -189,6 +215,7 @@ interface UpdateForm {
   clothTypeBreakdown: {
     clothTypeId: string;
     quantity: string;
+    serviceType: 'instant' | 'scheduled' | '';
   }[];
 
 }
@@ -209,7 +236,17 @@ const OrderDetailPanel: React.FC<{
 
   const { updateStatus } = useOrdersStore();
 
-  const nextStatus = NEXT_STATUS[order.status];
+  const nextStatus = getNextStatus(order);
+
+  // Which service type(s) this order was actually placed under. The cart
+  // enforces one type per order, but older/seeded orders can carry mixed
+  // categories, so we surface all of them and only auto-fill when unambiguous.
+  const orderCategories = useMemo(() => {
+    const set = new Set((order.items ?? []).map((i) => i.category ?? 'instant'));
+    return Array.from(set) as ('instant' | 'scheduled')[];
+  }, [order.items]);
+  const defaultServiceType: 'instant' | 'scheduled' | '' =
+    orderCategories.length === 1 ? orderCategories[0] : '';
 
   const [form, setForm] = useState<UpdateForm>({
 
@@ -236,6 +273,8 @@ const OrderDetailPanel: React.FC<{
       clothTypeId: item.clothTypeId,
 
       quantity: String(item.quantity),
+
+      serviceType: item.serviceType ?? defaultServiceType,
 
     })) || [],
 
@@ -273,7 +312,7 @@ const OrderDetailPanel: React.FC<{
 
   // Cloth types — loaded only when ITEMIZED step needs them
 
-  const [clothTypes, setClothTypes] = useState<any[]>([]);
+  const [clothTypes, setClothTypes] = useState<ClothType[]>([]);
 
   useEffect(() => {
 
@@ -295,19 +334,13 @@ const OrderDetailPanel: React.FC<{
 
 
 
-  // Amount derived from the cloth-type breakdown (× each type's rate)
-
-  const hasBreakdown = form.clothTypeBreakdown.length > 0;
-
-  const calculatedTotal = form.clothTypeBreakdown.reduce((sum, item) => {
-
-    const ct = clothTypes.find((c) => c._id === item.clothTypeId);
-
-    return sum + parseFloat(item.quantity || '0') * (ct?.rate || 0);
-
-  }, 0);
-
-
+  // Rate this cloth type bills at for the given service type, preferring a
+  // discount rate when one is set. Mirrors orders.service.ts on the backend.
+  const getEffectiveRate = (clothType: ClothType | undefined, serviceType: 'instant' | 'scheduled' | ''): number => {
+    if (!clothType || !serviceType) return 0;
+    if (serviceType === 'scheduled') return clothType.discountScheduledRate ?? clothType.scheduledRate;
+    return clothType.discountInstantRate ?? clothType.instantRate;
+  };
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -319,6 +352,7 @@ const OrderDetailPanel: React.FC<{
         for (const item of form.clothTypeBreakdown) {
           if (!item.clothTypeId) return 'Please select a cloth type for all items.';
           if (!item.quantity || parseFloat(item.quantity) < 1) return 'Quantity must be at least 1.';
+          if (!item.serviceType) return 'Please choose Instant or Scheduled for every cloth item.';
         }
         if (form.overrideAmount && (!form.billAmount || parseFloat(form.billAmount) <= 0))
           return 'Override amount must be greater than 0.';
@@ -397,6 +431,14 @@ const OrderDetailPanel: React.FC<{
         if (form.weightKg)  payload.weightKg  = parseFloat(form.weightKg);
 
         if (form.itemCount) payload.itemCount  = parseInt(form.itemCount);
+
+        if (form.clothTypeBreakdown.length > 0) {
+          payload.clothTypeBreakdown = form.clothTypeBreakdown.map(item => ({
+            clothTypeId: item.clothTypeId,
+            quantity: parseInt(item.quantity) || 0,
+            serviceType: item.serviceType || undefined,
+          }));
+        }
 
       }
 
@@ -506,7 +548,7 @@ const OrderDetailPanel: React.FC<{
 
           {/* Stepper */}
 
-          <TrackingStepper status={order.status} />
+          <TrackingStepper status={order.status} deliveryType={order.deliveryType} />
 
 
 
@@ -599,6 +641,31 @@ const OrderDetailPanel: React.FC<{
               </Row>
 
             )}
+
+            <Row icon={<Package size={14} />} label="Return">
+
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                order.deliveryType === 'SELF_PICKUP'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-orange-50 text-orange-700 border-orange-200'
+              }`}>
+                {order.deliveryType === 'SELF_PICKUP' ? 'Self Pickup' : 'Home Delivery'}
+              </span>
+
+              {order.deliveryType !== 'SELF_PICKUP' && order.deliveryAddress && (
+                <span className="ml-2 text-xs text-slate-500">
+                  {[
+                    order.deliveryAddress.houseNo,
+                    order.deliveryAddress.buildingName,
+                    order.deliveryAddress.street,
+                    order.deliveryAddress.area,
+                    order.deliveryAddress.city,
+                    order.deliveryAddress.pincode,
+                  ].filter(Boolean).join(', ')}
+                </span>
+              )}
+
+            </Row>
 
             {(order.pickupDate || order.pickupTime) && (
 
@@ -810,13 +877,21 @@ const OrderDetailPanel: React.FC<{
                         type="button"
                         onClick={() => setForm(f => ({
                           ...f,
-                          clothTypeBreakdown: [...f.clothTypeBreakdown, { clothTypeId: '', quantity: '' }]
+                          clothTypeBreakdown: [...f.clothTypeBreakdown, { clothTypeId: '', quantity: '', serviceType: defaultServiceType }]
                         }))}
                         className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
                       >
                         + Add Cloth
                       </button>
                     </div>
+
+                    <p className="text-[11px] text-slate-500">
+                      This order was placed as{' '}
+                      <span className="font-semibold">
+                        {orderCategories.map(c => (c === 'instant' ? 'Instant' : 'Scheduled')).join(' + ')}
+                      </span>
+                      {orderCategories.length > 1 && ' — choose the right pricing per cloth item below.'}
+                    </p>
 
                     {form.clothTypeBreakdown.map((item, idx) => (
                       <div key={idx} className="flex gap-2 items-start">
@@ -833,6 +908,22 @@ const OrderDetailPanel: React.FC<{
                         >
                           <option value="">Select cloth type</option>
                           {clothTypes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                        </select>
+
+                        <select
+                          value={item.serviceType}
+                          onChange={(e) => {
+                            setForm(f => {
+                              const newBreakdown = [...f.clothTypeBreakdown];
+                              newBreakdown[idx] = { ...newBreakdown[idx], serviceType: e.target.value as 'instant' | 'scheduled' | '' };
+                              return { ...f, clothTypeBreakdown: newBreakdown };
+                            });
+                          }}
+                          className="w-24 px-2 py-1.5 text-xs rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5"
+                        >
+                          <option value="">Type</option>
+                          <option value="instant">Instant</option>
+                          <option value="scheduled">Scheduled</option>
                         </select>
 
                         <input
@@ -869,18 +960,21 @@ const OrderDetailPanel: React.FC<{
                       <div className="text-xs space-y-1 bg-slate-50 dark:bg-white/5 p-2 rounded">
                         {form.clothTypeBreakdown.map((item, idx) => {
                           const clothType = clothTypes.find(c => c._id === item.clothTypeId);
-                          const rate = clothType?.rate || 0;
+                          const rate = getEffectiveRate(clothType, item.serviceType);
                           const amount = parseFloat(item.quantity || '0') * rate;
                           return (
                             <div key={idx} className="flex justify-between">
-                              <span>{clothType?.name}: {item.quantity} × ₹{rate}</span>
+                              <span>{clothType?.name ?? '—'} ({item.serviceType || '—'}): {item.quantity || 0} × ₹{rate}</span>
                               <span className="font-semibold">₹{amount.toFixed(2)}</span>
                             </div>
                           );
                         })}
                         <div className="border-t border-slate-200 dark:border-white/10 pt-1 mt-1 flex justify-between font-bold">
                           <span>Calculated Amount:</span>
-                          <span>₹{calculatedTotal.toFixed(2)}</span>
+                          <span>₹{form.clothTypeBreakdown.reduce((sum, item) => {
+                            const clothType = clothTypes.find(c => c._id === item.clothTypeId);
+                            return sum + (parseFloat(item.quantity || '0') * getEffectiveRate(clothType, item.serviceType));
+                          }, 0).toFixed(2)}</span>
                         </div>
                       </div>
                     )}
@@ -1022,7 +1116,30 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* OUT_FOR_DELIVERY → COMPLETED: admin must enter OTP */}
+              {/* PROCESSING → READY_FOR_PICKUP: self-pickup orders — payment must be
+                  done, no driver/partner assignment needed. */}
+
+              {nextStatus === 'READY_FOR_PICKUP' && (
+
+                paymentPending
+
+                  ? <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-semibold">
+
+                      ⚠️ Cannot mark ready — user has not completed payment yet.
+
+                    </div>
+
+                  : <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">
+
+                      <ShieldCheck size={13}/> Payment confirmed. Delivery OTP is ready — the customer will show it at the counter.
+
+                    </div>
+
+              )}
+
+
+
+              {/* OUT_FOR_DELIVERY/READY_FOR_PICKUP → COMPLETED: admin must enter OTP */}
 
               {nextStatus === 'COMPLETED' && (
 
@@ -1032,7 +1149,9 @@ const OrderDetailPanel: React.FC<{
 
                     <KeyRound size={13} className="text-blue-500"/>
 
-                    Enter the 4-digit OTP from the customer to confirm delivery.
+                    {order.deliveryType === 'SELF_PICKUP'
+                      ? 'Enter the 4-digit OTP the customer shows you at the counter.'
+                      : 'Enter the 4-digit OTP from the customer to confirm delivery.'}
 
                   </p>
 
@@ -1060,9 +1179,9 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* Disable OUT_FOR_DELIVERY advance if payment pending */}
+              {/* Disable OUT_FOR_DELIVERY/READY_FOR_PICKUP advance if payment pending */}
 
-              {!(nextStatus === 'OUT_FOR_DELIVERY' && paymentPending) && (
+              {!((nextStatus === 'OUT_FOR_DELIVERY' || nextStatus === 'READY_FOR_PICKUP') && paymentPending) && (
 
                 <button onClick={handleAdvance} disabled={saving}
 
@@ -1263,6 +1382,8 @@ const ALL_STATUSES: Array<{ value: OrderStatus | ''; label: string }> = [
   { value: 'PROCESSING',      label: 'Brewing'          },
 
   { value: 'OUT_FOR_DELIVERY',label: 'Out for Delivery' },
+
+  { value: 'READY_FOR_PICKUP',label: 'Ready for Pickup' },
 
   { value: 'COMPLETED',       label: 'Delivered'        },
 

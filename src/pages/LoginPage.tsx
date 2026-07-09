@@ -61,7 +61,7 @@ export const LoginPage: React.FC = () => {
             <div className="inline-flex items-center justify-center w-14 h-14 bg-brand rounded-2xl mb-6 shadow-xl shadow-brand/20">
                <img src={brandLogo} alt="Brand Logo" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">LaundryBrew</h1>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Laundrybrew CRM</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm font-medium">Sign in to manage your laundry empire</p>
           </div>
 
@@ -130,26 +130,6 @@ export const LoginPage: React.FC = () => {
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-10 p-5 bg-slate-50 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-white/5">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle size={14} className="text-brand" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                Demo Credentials
-              </span>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Email:</span>
-                <span className="font-bold text-slate-700 dark:text-slate-200">admin@example.com</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Password:</span>
-                <span className="font-bold text-slate-700 dark:text-slate-200">admin123</span>
-              </div>
-            </div>
-          </div>
         </div>
         
         {/* Footer Link */}
