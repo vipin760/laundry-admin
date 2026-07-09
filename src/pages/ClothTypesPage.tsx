@@ -28,6 +28,19 @@ const SUBCATEGORY_LABELS: Record<ClothTypeSubcategory, string> = {
   combo: 'Combo',
 };
 
+// Which subcategories each category actually renders in the customer-facing
+// Pricing screen (and, for Ironing's "combo", the Instant pickup flow). Keep
+// this in sync with laundry_fe/lib/features/pricing/screens/pricing_screen.dart
+// — a subcategory picked outside this list silently never displays anywhere.
+const CATEGORY_SUBCATEGORIES: Record<ClothTypeCategory, ClothTypeSubcategory[]> = {
+  ironing: ['unisex', 'men', 'women', 'kids', 'household', 'combo'],
+  dryCleaning: ['unisex', 'men', 'women', 'kids', 'household', 'delicate'],
+  shoeCleaning: [],
+  washFold: ['package', 'plan', 'household'],
+  washIron: ['package', 'plan'],
+  membership: ['ironPass', 'smartPass'],
+};
+
 interface ClothTypeFormData {
   name: string;
   instantAvailable: boolean;
@@ -252,7 +265,20 @@ export const ClothTypesPage: React.FC = () => {
           <select
             className="input-premium"
             value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value as ClothTypeCategory | '' })}
+            onChange={(e) => {
+              const category = e.target.value as ClothTypeCategory | '';
+              const allowedSubs = category ? CATEGORY_SUBCATEGORIES[category] : null;
+              setFormData({
+                ...formData,
+                category,
+                // Clear a subcategory that no longer applies to the newly
+                // selected category, instead of silently keeping an invalid
+                // pairing that would never display anywhere.
+                subcategory: allowedSubs && !allowedSubs.includes(formData.subcategory as ClothTypeSubcategory)
+                  ? ''
+                  : formData.subcategory,
+              });
+            }}
           >
             <option value="">Select category</option>
             {(Object.keys(CATEGORY_LABELS) as ClothTypeCategory[]).map((cat) => (
@@ -270,7 +296,7 @@ export const ClothTypesPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, subcategory: e.target.value as ClothTypeSubcategory | '' })}
             >
               <option value="">Select subcategory</option>
-              {(Object.keys(SUBCATEGORY_LABELS) as ClothTypeSubcategory[]).map((sub) => (
+              {(formData.category ? CATEGORY_SUBCATEGORIES[formData.category] : (Object.keys(SUBCATEGORY_LABELS) as ClothTypeSubcategory[])).map((sub) => (
                 <option key={sub} value={sub}>{SUBCATEGORY_LABELS[sub]}</option>
               ))}
             </select>
