@@ -342,6 +342,16 @@ const OrderDetailPanel: React.FC<{
     return clothType.discountInstantRate ?? clothType.instantRate;
   };
 
+  const hasBreakdown = form.clothTypeBreakdown.length > 0;
+
+  const calculatedTotal = useMemo(
+    () => form.clothTypeBreakdown.reduce((sum, item) => {
+      const clothType = clothTypes.find(c => c._id === item.clothTypeId);
+      return sum + (parseFloat(item.quantity || '0') * getEffectiveRate(clothType, item.serviceType));
+    }, 0),
+    [form.clothTypeBreakdown, clothTypes],
+  );
+
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validateForm = (): string | null => {
@@ -971,10 +981,7 @@ const OrderDetailPanel: React.FC<{
                         })}
                         <div className="border-t border-slate-200 dark:border-white/10 pt-1 mt-1 flex justify-between font-bold">
                           <span>Calculated Amount:</span>
-                          <span>₹{form.clothTypeBreakdown.reduce((sum, item) => {
-                            const clothType = clothTypes.find(c => c._id === item.clothTypeId);
-                            return sum + (parseFloat(item.quantity || '0') * getEffectiveRate(clothType, item.serviceType));
-                          }, 0).toFixed(2)}</span>
+                          <span>₹{calculatedTotal.toFixed(2)}</span>
                         </div>
                       </div>
                     )}
