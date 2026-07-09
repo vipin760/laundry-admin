@@ -30,6 +30,7 @@ const SUBCATEGORY_LABELS: Record<ClothTypeSubcategory, string> = {
 
 interface ClothTypeFormData {
   name: string;
+  instantAvailable: boolean;
   instantRate: number;
   scheduledRate: number;
   discountInstantRate?: number;
@@ -45,6 +46,7 @@ interface ClothTypeFormData {
 
 const emptyFormData: ClothTypeFormData = {
   name: '',
+  instantAvailable: true,
   instantRate: 0,
   scheduledRate: 0,
   discountInstantRate: undefined,
@@ -109,7 +111,8 @@ export const ClothTypesPage: React.FC = () => {
 
   const isFormValid = () => {
     if (!formData.name.trim()) return false;
-    if (!isSmartPass && (formData.instantRate <= 0 || formData.scheduledRate <= 0)) return false;
+    if (!isSmartPass && formData.instantAvailable && formData.instantRate <= 0) return false;
+    if (!isSmartPass && formData.scheduledRate <= 0) return false;
     if (formData.category && formData.category !== 'shoeCleaning' && !formData.subcategory) return false;
     if (showDiscount) {
       if (formData.discountInstantRate != null && formData.discountInstantRate >= formData.instantRate) return false;
@@ -120,7 +123,10 @@ export const ClothTypesPage: React.FC = () => {
 
   const toDto = () => ({
     name: formData.name,
-    instantRate: formData.instantRate,
+    // A cloth type not offered for Instant is stored as rate 0 — the app
+    // treats 0 as "not available for this service type" wherever it shows
+    // pricing, so no separate flag is needed on the backend.
+    instantRate: formData.instantAvailable ? formData.instantRate : 0,
     scheduledRate: formData.scheduledRate,
     discountInstantRate: showDiscount ? formData.discountInstantRate : undefined,
     discountScheduledRate: showDiscount ? formData.discountScheduledRate : undefined,
@@ -152,6 +158,7 @@ export const ClothTypesPage: React.FC = () => {
     setSelectedClothType(clothType);
     setFormData({
       name: clothType.name,
+      instantAvailable: clothType.instantRate > 0,
       instantRate: clothType.instantRate,
       scheduledRate: clothType.scheduledRate,
       discountInstantRate: clothType.discountInstantRate,
@@ -273,16 +280,34 @@ export const ClothTypesPage: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-            Instant Rate (₹){!isSmartPass && ' *'}
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">
+              Instant Rate (₹){!isSmartPass && formData.instantAvailable && ' *'}
+            </label>
+            {!isSmartPass && (
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.instantAvailable}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    instantAvailable: e.target.checked,
+                    instantRate: e.target.checked ? formData.instantRate : 0,
+                  })}
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Available
+              </label>
+            )}
+          </div>
           <input
             type="number"
-            required={!isSmartPass}
-            min={isSmartPass ? '0' : '0.01'}
+            required={!isSmartPass && formData.instantAvailable}
+            min="0"
             step="0.01"
-            placeholder={isSmartPass ? 'Not applicable' : 'e.g. 20.00'}
-            className="input-premium"
+            disabled={!isSmartPass && !formData.instantAvailable}
+            placeholder={isSmartPass ? 'Not applicable' : formData.instantAvailable ? 'e.g. 20.00' : 'Not offered'}
+            className="input-premium disabled:bg-slate-50 disabled:text-slate-400 dark:disabled:bg-slate-800/50"
             value={formData.instantRate}
             onChange={(e) => setFormData({ ...formData, instantRate: parseFloat(e.target.value) || 0 })}
           />
