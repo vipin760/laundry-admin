@@ -1,17 +1,19 @@
 import React from 'react';
 import type { LaundryService } from '../api/servicesApi';
 import { Badge } from './Badge';
-import { Edit2, Trash2, Clock, Star } from 'lucide-react';
+import { Edit2, Trash2, RotateCcw, Clock, Star } from 'lucide-react';
 
 interface ServiceTableRowProps {
   service: LaundryService;
   onEdit: (service: LaundryService) => void;
-  onDelete: (id: string) => void;
+  onDeactivateClick: (service: LaundryService) => void;
+  onReactivate: (service: LaundryService) => void;
   onTogglePopular: (service: LaundryService) => void;
   onSetPopularOrder: (service: LaundryService, order: number) => void;
 }
 
-export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdit, onDelete, onTogglePopular, onSetPopularOrder }) => {
+export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdit, onDeactivateClick, onReactivate, onTogglePopular, onSetPopularOrder }) => {
+  const isAvailable = service.isAvailable !== false;
   const categoryVariant = (cat: string): 'blue' | 'orange' =>
     cat === 'instant' ? 'blue' : 'orange';
 
@@ -66,8 +68,8 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
         <Badge
-          text={service.isAvailable !== false ? 'Active' : 'Inactive'}
-          variant={service.isAvailable !== false ? 'green' : 'red'}
+          text={isAvailable ? 'Active' : 'Inactive'}
+          variant={isAvailable ? 'green' : 'red'}
           dot
         />
       </td>
@@ -100,18 +102,29 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
       </td>
       <td className="px-6 py-5 whitespace-nowrap text-sm font-medium">
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={() => onEdit(service)}
             className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20"
           >
             <Edit2 size={16} />
           </button>
-          <button 
-            onClick={() => onDelete(service._id)}
-            className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-500/20"
-          >
-            <Trash2 size={16} />
-          </button>
+          {isAvailable ? (
+            <button
+              onClick={() => onDeactivateClick(service)}
+              title="Deactivate (hide from customer app)"
+              className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-500/20"
+            >
+              <Trash2 size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={() => onReactivate(service)}
+              title="Reactivate"
+              className="p-2 text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl transition-all border border-transparent hover:border-green-100 dark:hover:border-green-500/20"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
         </div>
       </td>
     </tr>

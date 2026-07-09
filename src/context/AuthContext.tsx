@@ -55,10 +55,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       const data = await response.json();
-      
+      const token = data.token || data.access_token;
+
+      if (!token) {
+        throw new Error('Login response did not include an auth token');
+      }
+
+      localStorage.setItem('authToken', token);
       setIsAuthenticated(true);
-      setUser({ email, role: 'admin' });
-      localStorage.setItem('authToken', data.token || data.access_token || 'token-' + Date.now());
+      setUser({
+        email: data.user?.email || email,
+        role: data.user?.role || 'admin',
+      });
     } catch (error) {
       console.error('Login error:', error);
       throw error;

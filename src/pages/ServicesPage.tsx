@@ -20,6 +20,8 @@ export const ServicesPage: React.FC = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deactivatingService, setDeactivatingService] = useState<LaundryService | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -144,8 +146,29 @@ export const ServicesPage: React.FC = () => {
     setIsAddModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    console.log('Delete service', id);
+  const handleDeactivateClick = (service: LaundryService) => {
+    setDeactivatingService(service);
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!deactivatingService) return;
+    setIsDeactivating(true);
+    try {
+      await updateService(deactivatingService._id, { isAvailable: false });
+      setDeactivatingService(null);
+    } catch {
+      // error shown via store
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
+  const handleReactivate = async (service: LaundryService) => {
+    try {
+      await updateService(service._id, { isAvailable: true });
+    } catch {
+      // error shown via store
+    }
   };
 
   // ── Popular row controls (home page top-3 cards) ──
@@ -273,7 +296,8 @@ export const ServicesPage: React.FC = () => {
                     key={service._id}
                     service={service}
                     onEdit={handleEdit}
-                    onDelete={handleDelete}
+                    onDeactivateClick={handleDeactivateClick}
+                    onReactivate={handleReactivate}
                     onTogglePopular={handleTogglePopular}
                     onSetPopularOrder={handleSetPopularOrder}
                   />
@@ -534,6 +558,72 @@ export const ServicesPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Deactivate Confirmation Modal */}
+      <AnimatePresence>
+        {deactivatingService && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeactivatingService(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-md shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-red-600" />
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Deactivate Service</h2>
+                  <p className="text-slate-500 text-sm mt-1">It will be hidden from the customer app</p>
+                </div>
+                <button
+                  onClick={() => setDeactivatingService(null)}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <p className="text-slate-700 dark:text-slate-300">
+                  Are you sure you want to deactivate{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">{deactivatingService.name}</span>?
+                  Customers won't see it in the app, but you can reactivate it anytime.
+                </p>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setDeactivatingService(null)}
+                    className="flex-1 btn-ghost"
+                    disabled={isDeactivating}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmDeactivate}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-2xl transition-colors justify-center flex items-center gap-2"
+                    disabled={isDeactivating}
+                  >
+                    {isDeactivating ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Deactivating...
+                      </span>
+                    ) : 'Deactivate'}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
