@@ -30,6 +30,12 @@ import {
 
   Shirt,
 
+  Gift,
+
+  BarChart3,
+
+  UserX,
+
 } from 'lucide-react';
 
 
@@ -100,6 +106,32 @@ export const Sidebar: React.FC = () => {
 
     {
 
+      title: 'Refer & Earn',
+
+      items: [
+
+        { to: '/referrals', icon: Gift, label: 'Referrals' },
+
+        { to: '/referrals/analytics', icon: BarChart3, label: 'Analytics' },
+
+      ]
+
+    },
+
+    {
+
+      title: 'Account Deletion',
+
+      items: [
+
+        { to: '/delete-requests', icon: UserX, label: 'Delete Requests' },
+
+      ]
+
+    },
+
+    {
+
       title: 'Support',
 
       items: [
@@ -132,7 +164,7 @@ export const Sidebar: React.FC = () => {
 
           <h1 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-none">
 
-            Laundry Brew
+            LaundryBrew
 
           </h1>
 

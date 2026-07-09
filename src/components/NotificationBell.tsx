@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, CheckCheck, PackageOpen, XCircle, CreditCard, CheckCircle2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, CheckCheck, PackageOpen, XCircle, CreditCard, CheckCircle2, X, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { notificationsApi } from '../api/notificationsApi';
 import type { AppNotification } from '../api/notificationsApi';
@@ -62,15 +62,89 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
+  // Newest first — split into "New" (unread) and "Earlier" (read), Instagram-style
+  const { newItems, earlierItems } = useMemo(() => {
+    const sorted = [...items].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    return {
+      newItems: sorted.filter((n) => !n.isRead),
+      earlierItems: sorted.filter((n) => n.isRead),
+    };
+  }, [items]);
+
   const handleMarkAllRead = async () => {
+    setUnread(0);
+    setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
     try {
       await notificationsApi.markAdminRead();
-      setUnread(0);
-      setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch {
-      // ignore
+      fetchNotifications(); // resync on failure
     }
   };
+
+  const handleMarkOneRead = async (id: string, wasRead: boolean) => {
+    if (wasRead) return;
+    setItems((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
+    setUnread((u) => Math.max(0, u - 1));
+    try {
+      await notificationsApi.markAdminOneRead(id);
+    } catch {
+      fetchNotifications();
+    }
+  };
+
+  const handleDismiss = async (e: React.MouseEvent, id: string, wasRead: boolean) => {
+    e.stopPropagation();
+    setItems((prev) => prev.filter((n) => n._id !== id));
+    if (!wasRead) setUnread((u) => Math.max(0, u - 1));
+    try {
+      await notificationsApi.deleteAdminOne(id);
+    } catch {
+      fetchNotifications();
+    }
+  };
+
+  const handleClearAll = async () => {
+    setItems([]);
+    setUnread(0);
+    try {
+      await notificationsApi.clearAdmin();
+    } catch {
+      fetchNotifications();
+    }
+  };
+
+  const renderItem = (n: AppNotification) => (
+    <div
+      key={n._id}
+      onClick={() => handleMarkOneRead(n._id, n.isRead)}
+      className={`group flex gap-3 px-4 py-3 border-b border-slate-50 dark:border-white/5 cursor-pointer transition-colors ${
+        n.isRead
+          ? 'hover:bg-slate-50 dark:hover:bg-white/5'
+          : 'bg-blue-50/60 dark:bg-blue-500/5 hover:bg-blue-50 dark:hover:bg-blue-500/10'
+      }`}
+    >
+      <div className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-slate-50 dark:bg-white/5 flex items-center justify-center">
+        {typeIcon(n.type)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-black text-slate-900 dark:text-white truncate">{n.title}</p>
+          {!n.isRead && <span className="w-1.5 h-1.5 bg-brand rounded-full flex-shrink-0" />}
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{n.body}</p>
+        <p className="text-[10px] font-bold text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
+      </div>
+      <button
+        onClick={(e) => handleDismiss(e, n._id, n.isRead)}
+        title="Clear this notification"
+        className="flex-shrink-0 self-start p-1 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
 
   return (
     <div className="relative" ref={panelRef}>
@@ -97,16 +171,32 @@ export const NotificationBell: React.FC = () => {
             className="absolute right-0 mt-3 w-96 max-h-[480px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/5">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">Notifications</h3>
-              {unread > 0 && (
-                <button
-                  onClick={handleMarkAllRead}
-                  className="flex items-center gap-1 text-[11px] font-bold text-brand hover:underline"
-                >
-                  <CheckCheck size={13} />
-                  Mark all read
-                </button>
-              )}
+              <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                Notifications
+                {unread > 0 && (
+                  <span className="ml-2 text-[11px] font-bold text-brand">{unread} new</span>
+                )}
+              </h3>
+              <div className="flex items-center gap-3">
+                {unread > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="flex items-center gap-1 text-[11px] font-bold text-brand hover:underline"
+                  >
+                    <CheckCheck size={13} />
+                    Mark all read
+                  </button>
+                )}
+                {items.length > 0 && (
+                  <button
+                    onClick={handleClearAll}
+                    className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-red-500"
+                  >
+                    <Trash2 size={13} />
+                    Clear all
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="overflow-y-auto flex-1">
@@ -116,26 +206,24 @@ export const NotificationBell: React.FC = () => {
                   <p className="mt-3 text-xs font-semibold text-slate-400">No notifications yet</p>
                 </div>
               ) : (
-                items.map((n) => (
-                  <div
-                    key={n._id}
-                    className={`flex gap-3 px-4 py-3 border-b border-slate-50 dark:border-white/5 ${
-                      n.isRead ? '' : 'bg-blue-50/50 dark:bg-blue-500/5'
-                    }`}
-                  >
-                    <div className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-slate-50 dark:bg-white/5 flex items-center justify-center">
-                      {typeIcon(n.type)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-black text-slate-900 dark:text-white truncate">{n.title}</p>
-                        {!n.isRead && <span className="w-1.5 h-1.5 bg-brand rounded-full flex-shrink-0" />}
+                <>
+                  {newItems.length > 0 && (
+                    <>
+                      <div className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-wider text-brand">
+                        New
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{n.body}</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
-                    </div>
-                  </div>
-                ))
+                      {newItems.map(renderItem)}
+                    </>
+                  )}
+                  {earlierItems.length > 0 && (
+                    <>
+                      <div className="px-4 pt-3 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Earlier
+                      </div>
+                      {earlierItems.map(renderItem)}
+                    </>
+                  )}
+                </>
               )}
             </div>
           </motion.div>

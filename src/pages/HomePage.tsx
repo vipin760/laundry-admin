@@ -25,12 +25,13 @@ const STATUS_COLORS: Record<OrderStatus, { hex: string; bg: string }> = {
   ITEMIZED:         { hex: '#06b6d4', bg: 'bg-cyan-500' },
   PROCESSING:       { hex: '#f59e0b', bg: 'bg-amber-500' },
   OUT_FOR_DELIVERY: { hex: '#6366f1', bg: 'bg-indigo-500' },
+  READY_FOR_PICKUP: { hex: '#6366f1', bg: 'bg-indigo-500' },
   COMPLETED:        { hex: '#10b981', bg: 'bg-emerald-500' },
   CANCELLED:        { hex: '#ef4444', bg: 'bg-red-500' },
 };
 
 const ACTIVE_STATUSES: OrderStatus[] = [
-  'ORDER_PLACED', 'PICKUP_ASSIGNED', 'ITEMIZED', 'PROCESSING', 'OUT_FOR_DELIVERY',
+  'ORDER_PLACED', 'PICKUP_ASSIGNED', 'ITEMIZED', 'PROCESSING', 'OUT_FOR_DELIVERY', 'READY_FOR_PICKUP',
 ];
 
 export const HomePage: React.FC = () => {

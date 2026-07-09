@@ -22,6 +22,12 @@ import { TimeSlotsPage } from './pages/TimeSlotsPage';
 
 import { ClothTypesPage } from './pages/ClothTypesPage';
 
+import { ReferralPage } from './pages/ReferralPage';
+
+import { ReferralAnalyticsPage } from './pages/ReferralAnalyticsPage';
+
+import { DeleteRequestsPage } from './pages/DeleteRequestsPage';
+
 import './App.css';
 
 
@@ -189,6 +195,33 @@ function App() {
             />
 
 
+
+            <Route
+              path="/referrals"
+              element={
+                <ProtectedRoute>
+                  <ReferralPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/referrals/analytics"
+              element={
+                <ProtectedRoute>
+                  <ReferralAnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/delete-requests"
+              element={
+                <ProtectedRoute>
+                  <DeleteRequestsPage />
+                </ProtectedRoute>
+              }
+            />
 
             <Route path="/" element={<Navigate to="/login" replace />} />
 
