@@ -2,17 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { useClothTypesStore } from '../store/useClothTypesStore';
 import type { ClothType, ClothTypeCategory, ClothTypeSubcategory } from '../api/clothTypesApi';
+import { CATEGORY_LABELS } from '../constants/clothTypeCategories';
 import { Plus, Search, X, Loader2, Package, Edit, Trash2, Power } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const CATEGORY_LABELS: Record<ClothTypeCategory, string> = {
-  ironing: 'Ironing',
-  shoeCleaning: 'Shoe Cleaning',
-  dryCleaning: 'Dry Cleaning',
-  washFold: 'Wash & Fold',
-  washIron: 'Wash & Iron',
-  membership: 'Membership',
-};
 
 const SUBCATEGORY_LABELS: Record<ClothTypeSubcategory, string> = {
   unisex: 'Unisex',

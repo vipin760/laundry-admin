@@ -26,6 +26,8 @@ import type { Order, OrderStatus, DeliveryType, SortField, SortDir, UpdateStatus
 
 import type { ClothType } from '../api/clothTypesApi';
 
+import { CATEGORY_LABELS, CATEGORY_ORDER } from '../constants/clothTypeCategories';
+
 import { STATUS_LABELS, getNextStatus, ordersApi } from '../api/ordersApi';
 
 import { usersApi, type User as AppUser } from '../api/usersApi';
@@ -326,7 +328,23 @@ const OrderDetailPanel: React.FC<{
 
   }, [nextStatus]);
 
+  // Group cloth types by service category so identically-named items from
+  // different services (e.g. "Shirt" under Ironing vs Wash & Fold) are
+  // distinguishable when itemizing an order.
+  const clothTypesByCategory = useMemo(() => {
+    const groups = new Map<string, ClothType[]>();
+    for (const category of CATEGORY_ORDER) groups.set(category, []);
+    const uncategorized: ClothType[] = [];
+    for (const c of clothTypes) {
+      if (c.category) groups.get(c.category)?.push(c);
+      else uncategorized.push(c);
+    }
+    if (uncategorized.length > 0) groups.set('uncategorized', uncategorized);
+    return groups;
+  }, [clothTypes]);
 
+  const clothTypeLabel = (c: ClothType) =>
+    c.category ? `${c.name} — ${CATEGORY_LABELS[c.category]}` : c.name;
 
   const set = (k: keyof UpdateForm, v: string) =>
 
@@ -917,7 +935,19 @@ const OrderDetailPanel: React.FC<{
                           className="flex-1 px-2 py-1.5 text-xs rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5"
                         >
                           <option value="">Select cloth type</option>
-                          {clothTypes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                          {[...clothTypesByCategory.entries()].map(([category, items]) => {
+                            if (items.length === 0) return null;
+                            const label = category === 'uncategorized'
+                              ? 'Uncategorized'
+                              : CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS];
+                            return (
+                              <optgroup key={category} label={label}>
+                                {items.map(c => (
+                                  <option key={c._id} value={c._id}>{c.name}</option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
                         </select>
 
                         <select
@@ -974,7 +1004,7 @@ const OrderDetailPanel: React.FC<{
                           const amount = parseFloat(item.quantity || '0') * rate;
                           return (
                             <div key={idx} className="flex justify-between">
-                              <span>{clothType?.name ?? '—'} ({item.serviceType || '—'}): {item.quantity || 0} × ₹{rate}</span>
+                              <span>{clothType ? clothTypeLabel(clothType) : '—'} ({item.serviceType || '—'}): {item.quantity || 0} × ₹{rate}</span>
                               <span className="font-semibold">₹{amount.toFixed(2)}</span>
                             </div>
                           );
