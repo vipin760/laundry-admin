@@ -286,7 +286,7 @@ export const TimeSlotsPage: React.FC = () => {
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
               The <strong>Instant</strong> slot is automatically shown to users — delivery partner
-              reaches in ~10 minutes. You cannot edit or delete it here.
+              reaches in ~15 minutes. You cannot edit or delete it here.
             </p>
           </div>
         </div>
