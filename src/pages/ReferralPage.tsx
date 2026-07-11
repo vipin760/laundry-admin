@@ -14,10 +14,12 @@ import {
 import {
   referralApi,
   STATUS_LABELS,
+  REWARD_TYPE_LABELS,
   type DashboardSummary,
   type Referral,
   type ReferralSettings,
   type ReferralStatus,
+  type RewardType,
 } from '../api/referralApi';
 
 const STATUS_STYLES: Record<ReferralStatus, string> = {
@@ -326,81 +328,231 @@ const ActionBtn: React.FC<{
 
 // ── Settings modal ────────────────────────────────────────────────────────────
 
+/** Field metadata: label + hint + bounds. Bounds mirror the backend DTO. */
+const NUM_FIELDS: Array<{
+  key: keyof ReferralSettings;
+  label: string;
+  hint?: string;
+  min: number;
+  max?: number;
+}> = [
+  { key: 'referrerRewardAmount', label: 'Referrer reward (₹)', hint: 'Paid to the inviter', min: 0 },
+  { key: 'refereeRewardAmount', label: 'New user reward (₹)', hint: 'Welcome bonus for the friend', min: 0 },
+  { key: 'rewardPercentage', label: 'Reward percentage (%)', hint: 'Only for “% of first order”', min: 0, max: 100 },
+  { key: 'minimumOrderValue', label: 'Min. first order (₹)', hint: 'Order value needed to qualify', min: 0 },
+  { key: 'maximumReferralReward', label: 'Max reward cap (₹)', hint: '0 = no cap', min: 0 },
+  { key: 'codeLength', label: 'Referral code length', hint: 'New codes only (4–12 chars)', min: 4, max: 12 },
+  { key: 'referralExpiryDays', label: 'Reward expiry (days)', hint: 'Window after friend joins', min: 1 },
+  { key: 'dailyLimit', label: 'Daily referral limit', hint: '0 = unlimited', min: 0 },
+  { key: 'monthlyLimit', label: 'Monthly referral limit', hint: '0 = unlimited', min: 0 },
+  { key: 'lifetimeLimit', label: 'Max referrals per user', hint: '0 = unlimited', min: 0 },
+];
+
+const BOOL_FIELDS: Array<{ key: keyof ReferralSettings; label: string }> = [
+  { key: 'blockSameDevice', label: 'Block same-device referrals' },
+  { key: 'blockSameIp', label: 'Block same-IP referrals' },
+  { key: 'vpnDetectionEnabled', label: 'VPN detection' },
+  { key: 'pushNotificationsEnabled', label: 'Push notifications' },
+  { key: 'emailNotificationsEnabled', label: 'Email notifications' },
+];
+
+/** Only these keys are sent to the backend (mirrors UpdateReferralSettingsDto). */
+const DTO_KEYS: Array<keyof ReferralSettings> = [
+  'referralEnabled',
+  'codeLength',
+  'rewardType',
+  'referrerRewardAmount',
+  'refereeRewardAmount',
+  'rewardPercentage',
+  'minimumOrderValue',
+  'maximumReferralReward',
+  'referralExpiryDays',
+  'dailyLimit',
+  'monthlyLimit',
+  'lifetimeLimit',
+  'blockSameDevice',
+  'blockSameIp',
+  'vpnDetectionEnabled',
+  'pushNotificationsEnabled',
+  'emailNotificationsEnabled',
+];
+
 const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [settings, setSettings] = useState<ReferralSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    referralApi.getSettings().then(setSettings).catch(console.error);
+    referralApi
+      .getSettings()
+      .then((s) => setSettings({ ...s, codeLength: s.codeLength ?? 7 }))
+      .catch((e) => setLoadError((e as Error).message));
   }, []);
 
+  const set = <K extends keyof ReferralSettings>(k: K, v: ReferralSettings[K]) =>
+    setSettings((s) => (s ? { ...s, [k]: v } : s));
+
+  /** Client-side validation matching the backend DTO bounds. */
+  const validationError = useMemo(() => {
+    if (!settings) return null;
+    for (const f of NUM_FIELDS) {
+      const v = Number(settings[f.key]);
+      if (Number.isNaN(v)) return `${f.label} must be a number`;
+      if (v < f.min) return `${f.label} must be at least ${f.min}`;
+      if (f.max !== undefined && v > f.max)
+        return `${f.label} must be at most ${f.max}`;
+      if (f.key !== 'rewardPercentage' && !Number.isFinite(v))
+        return `${f.label} is invalid`;
+    }
+    if (
+      settings.rewardType === 'PERCENTAGE' &&
+      settings.rewardPercentage <= 0
+    ) {
+      return 'Reward percentage must be above 0 for “% of first order”';
+    }
+    return null;
+  }, [settings]);
+
   const save = async () => {
-    if (!settings) return;
+    if (!settings || validationError) return;
     setSaving(true);
+    setError(null);
     try {
-      await referralApi.updateSettings(settings);
+      // Send only DTO-whitelisted fields — never _id/key/timestamps.
+      const payload: Partial<ReferralSettings> = {};
+      for (const k of DTO_KEYS) {
+        (payload as Record<string, unknown>)[k] = settings[k];
+      }
+      await referralApi.updateSettings(payload);
       onClose();
     } catch (e) {
-      alert((e as Error).message);
+      setError((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
-  const num = (k: keyof ReferralSettings) => (
-    <label className="block">
-      <span className="text-xs text-gray-500">{k}</span>
-      <input
-        type="number"
-        value={Number(settings?.[k] ?? 0)}
-        onChange={(e) =>
-          setSettings((s) => (s ? { ...s, [k]: Number(e.target.value) } : s))
-        }
-        className="w-full border rounded px-2 py-1 text-sm"
-      />
-    </label>
-  );
-
-  const bool = (k: keyof ReferralSettings) => (
-    <label className="flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        checked={Boolean(settings?.[k])}
-        onChange={(e) =>
-          setSettings((s) => (s ? { ...s, [k]: e.target.checked } : s))
-        }
-      />
-      {k}
-    </label>
-  );
+  const isPercentage = settings?.rewardType === 'PERCENTAGE';
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6">
         <h2 className="text-lg font-bold mb-4">Referral Settings</h2>
-        {!settings ? (
+        {loadError ? (
+          <p className="text-sm text-red-600">
+            Failed to load settings: {loadError}
+          </p>
+        ) : !settings ? (
           <Loader2 className="animate-spin" />
         ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {num('referrerRewardAmount')}
-              {num('refereeRewardAmount')}
-              {num('rewardPercentage')}
-              {num('minimumOrderValue')}
-              {num('maximumReferralReward')}
-              {num('referralExpiryDays')}
-              {num('dailyLimit')}
-              {num('monthlyLimit')}
-              {num('lifetimeLimit')}
+          <div className="space-y-5">
+            {/* Master switch */}
+            <label className="flex items-center justify-between bg-gray-50 border rounded-lg px-4 py-3">
+              <div>
+                <div className="font-medium text-sm">Referral programme</div>
+                <div className="text-xs text-gray-500">
+                  Turning this off hides Refer &amp; Earn and blocks new referrals
+                  immediately.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.referralEnabled}
+                onChange={(e) => set('referralEnabled', e.target.checked)}
+                className="h-5 w-5 accent-indigo-600"
+              />
+            </label>
+
+            {/* Reward type */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Rewards</h3>
+              <label className="block mb-3">
+                <span className="text-xs text-gray-500">Reward type</span>
+                <select
+                  value={settings.rewardType}
+                  onChange={(e) => set('rewardType', e.target.value as RewardType)}
+                  className="w-full border rounded px-2 py-1.5 text-sm"
+                >
+                  {(Object.keys(REWARD_TYPE_LABELS) as RewardType[]).map((t) => (
+                    <option key={t} value={t}>
+                      {REWARD_TYPE_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {NUM_FIELDS.filter(
+                  (f) =>
+                    ['referrerRewardAmount', 'refereeRewardAmount', 'rewardPercentage', 'minimumOrderValue', 'maximumReferralReward'].includes(f.key) &&
+                    (f.key !== 'rewardPercentage' || isPercentage),
+                ).map((f) => (
+                  <NumField key={f.key} field={f} settings={settings} set={set} />
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t">
-              {bool('referralEnabled')}
-              {bool('blockSameDevice')}
-              {bool('blockSameIp')}
-              {bool('vpnDetectionEnabled')}
-              {bool('pushNotificationsEnabled')}
-              {bool('emailNotificationsEnabled')}
+
+            {/* Codes, expiry & limits */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Codes, expiry &amp; limits</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {NUM_FIELDS.filter((f) =>
+                  ['codeLength', 'referralExpiryDays', 'dailyLimit', 'monthlyLimit', 'lifetimeLimit'].includes(f.key),
+                ).map((f) => (
+                  <NumField key={f.key} field={f} settings={settings} set={set} />
+                ))}
+              </div>
             </div>
+
+            {/* Fraud & notifications */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Fraud &amp; notifications</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {BOOL_FIELDS.map((f) => (
+                  <label key={f.key} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settings[f.key])}
+                      onChange={(e) => set(f.key, e.target.checked as never)}
+                      className="accent-indigo-600"
+                    />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Live user-side preview — mirrors the app's Refer & Earn hero card */}
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+              <div className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-1">
+                User sees (Refer &amp; Earn)
+              </div>
+              {settings.referralEnabled ? (
+                <p className="text-sm text-indigo-900">
+                  Get{' '}
+                  <strong>
+                    {isPercentage
+                      ? `${settings.rewardPercentage}% (max ₹${settings.maximumReferralReward || '∞'})`
+                      : `₹${settings.referrerRewardAmount}`}
+                  </strong>{' '}
+                  when a friend completes their first order of{' '}
+                  <strong>₹{settings.minimumOrderValue}</strong> or more. They
+                  get <strong>₹{settings.refereeRewardAmount}</strong> too!
+                </p>
+              ) : (
+                <p className="text-sm text-indigo-900">
+                  Referral programme is currently <strong>paused</strong> — users
+                  cannot apply codes.
+                </p>
+              )}
+              <p className="text-[11px] text-indigo-400 mt-2">
+                The app refreshes these values within ~1 minute of saving.
+              </p>
+            </div>
+
+            {(validationError || error) && (
+              <p className="text-sm text-red-600">{validationError || error}</p>
+            )}
           </div>
         )}
         <div className="flex justify-end gap-2 mt-6">
@@ -409,7 +561,7 @@ const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </button>
           <button
             onClick={save}
-            disabled={saving}
+            disabled={saving || !settings || Boolean(validationError)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save'}
@@ -419,3 +571,24 @@ const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     </div>
   );
 };
+
+const NumField: React.FC<{
+  field: { key: keyof ReferralSettings; label: string; hint?: string; min: number; max?: number };
+  settings: ReferralSettings;
+  set: <K extends keyof ReferralSettings>(k: K, v: ReferralSettings[K]) => void;
+}> = ({ field, settings, set }) => (
+  <label className="block">
+    <span className="text-xs text-gray-600">{field.label}</span>
+    <input
+      type="number"
+      min={field.min}
+      max={field.max}
+      value={Number(settings[field.key] ?? 0)}
+      onChange={(e) => set(field.key, Number(e.target.value) as never)}
+      className="w-full border rounded px-2 py-1.5 text-sm"
+    />
+    {field.hint && (
+      <span className="text-[11px] text-gray-400">{field.hint}</span>
+    )}
+  </label>
+);

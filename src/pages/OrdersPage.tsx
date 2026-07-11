@@ -614,6 +614,22 @@ const OrderDetailPanel: React.FC<{
 
           <div className="rounded-xl border border-slate-100 dark:border-white/5 divide-y divide-slate-100 dark:divide-white/5 overflow-hidden">
 
+            {order.customerName && (
+
+              <Row icon={<User size={14} />} label="Customer">
+
+                <span className="text-xs">{order.customerName}</span>
+
+                {order.customerPhone && (
+
+                  <span className="ml-2 text-xs text-slate-400">· {order.customerPhone}</span>
+
+                )}
+
+              </Row>
+
+            )}
+
             <Row icon={<Package size={14} />} label="Items">
 
               {order.items.map((i, idx) => (

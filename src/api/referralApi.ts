@@ -48,6 +48,8 @@ export interface DashboardSummary {
 
 export interface ReferralSettings {
   referralEnabled: boolean;
+  /** Length of newly generated referral codes (existing codes unaffected). */
+  codeLength: number;
   rewardType: RewardType;
   referrerRewardAmount: number;
   refereeRewardAmount: number;
@@ -174,6 +176,15 @@ export const referralApi = {
     if (status) q.set('status', status);
     return `${BASE_URL}/admin/referral/export?${q.toString()}`;
   },
+};
+
+export const REWARD_TYPE_LABELS: Record<RewardType, string> = {
+  WALLET_CREDIT: 'Wallet credit (fixed ₹)',
+  FIXED_AMOUNT: 'Fixed amount (₹)',
+  PERCENTAGE: '% of first order',
+  COUPON: 'Coupon code',
+  POINTS: 'Loyalty points',
+  FREE_DELIVERY: 'Free delivery',
 };
 
 export const STATUS_LABELS: Record<ReferralStatus, string> = {
