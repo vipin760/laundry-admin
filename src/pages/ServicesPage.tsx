@@ -356,7 +356,7 @@ export const ServicesPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
               <div className="flex justify-between items-center mb-8">
@@ -544,56 +544,73 @@ export const ServicesPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      Instant Service Description
-                    </label>
-                    <textarea
-                      required
-                      placeholder="Describe this service for Instant (same-day) customers..."
-                      className="input-premium h-24 resize-none"
-                      value={newService.instantDescription}
-                      onChange={(e) => setNewService({ ...newService, instantDescription: e.target.value })}
-                    />
+                  {/* ── Service Descriptions ── */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 mt-4">
+                      Service Descriptions
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                          ⚡ Instant
+                        </label>
+                        <textarea
+                          required
+                          placeholder="Describe this service for Instant (same-day) customers..."
+                          className="input-premium h-24 resize-none focus:ring-blue-500 focus:border-blue-500"
+                          value={newService.instantDescription}
+                          onChange={(e) => setNewService({ ...newService, instantDescription: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">
+                          🕐 Scheduled
+                        </label>
+                        <textarea
+                          required
+                          placeholder="Describe this service for Scheduled (time-slot) customers..."
+                          className="input-premium h-24 resize-none focus:ring-orange-500 focus:border-orange-500"
+                          value={newService.scheduledDescription}
+                          onChange={(e) => setNewService({ ...newService, scheduledDescription: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      Scheduled Service Description
-                    </label>
-                    <textarea
-                      required
-                      placeholder="Describe this service for Scheduled (time-slot) customers..."
-                      className="input-premium h-24 resize-none"
-                      value={newService.scheduledDescription}
-                      onChange={(e) => setNewService({ ...newService, scheduledDescription: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      Instant Order Placed Message
-                    </label>
-                    <textarea
-                      required
-                      placeholder="Shown on the Order Placed screen for Instant bookings, e.g. &quot;Your clothes will be cleaned and delivered within 60–90 minutes.&quot;"
-                      className="input-premium h-24 resize-none"
-                      value={newService.instantOrderPlacedMessage}
-                      onChange={(e) => setNewService({ ...newService, instantOrderPlacedMessage: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      Scheduled Order Placed Message
-                    </label>
-                    <textarea
-                      required
-                      placeholder="Shown on the Order Placed screen for Scheduled bookings, e.g. &quot;Your clothes will be delivered within 24 hours from the pickup time.&quot;"
-                      className="input-premium h-24 resize-none"
-                      value={newService.scheduledOrderPlacedMessage}
-                      onChange={(e) => setNewService({ ...newService, scheduledOrderPlacedMessage: e.target.value })}
-                    />
+                  {/* ── Order Placed Messages ── */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 mt-4">
+                      Order Placed Messages
+                    </p>
+                    <p className="text-xs text-slate-400 mb-3">
+                      Shown to the customer right after they place an order.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                          ⚡ Instant
+                        </label>
+                        <textarea
+                          required
+                          placeholder='e.g. "Your clothes will be cleaned and delivered within 60–90 minutes."'
+                          className="input-premium h-24 resize-none focus:ring-blue-500 focus:border-blue-500"
+                          value={newService.instantOrderPlacedMessage}
+                          onChange={(e) => setNewService({ ...newService, instantOrderPlacedMessage: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">
+                          🕐 Scheduled
+                        </label>
+                        <textarea
+                          required
+                          placeholder='e.g. "Your clothes will be delivered within 24 hours from the pickup time."'
+                          className="input-premium h-24 resize-none focus:ring-orange-500 focus:border-orange-500"
+                          value={newService.scheduledOrderPlacedMessage}
+                          onChange={(e) => setNewService({ ...newService, scheduledOrderPlacedMessage: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
