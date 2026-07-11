@@ -49,6 +49,13 @@ function currentHHMM() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Maps a YYYY-MM-DD date string to its day-of-week key, in local time. */
+function dayKeyForDateStr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const day = new Date(y, m - 1, d).getDay(); // 0=Sun..6=Sat
+  return ALL_DAYS[day === 0 ? 6 : day - 1];
+}
+
 // ── Deactivation confirmation modal ──────────────────────────────────────────
 
 interface DeactivateModalProps {
@@ -246,6 +253,10 @@ export const TimeSlotsPage: React.FC = () => {
 
   const now = currentHHMM();
   const isViewingToday = statsDate === todayStr();
+  const viewedDayKey = dayKeyForDateStr(statsDate);
+  const hasCoverageForViewedDay = slots.some(
+    (s) => s.isActive && s.daysAvailable.includes(viewedDayKey),
+  );
 
   return (
     <AdminLayout>
@@ -311,6 +322,18 @@ export const TimeSlotsPage: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* Warn when no active slot covers the viewed day — users fall back to the generic "Full Day" slot on that day */}
+        {!loading && slots.length > 0 && !hasCoverageForViewedDay && (
+          <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl p-4">
+            <AlertTriangle size={18} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700 dark:text-red-400">
+              <strong>No active slots cover {DAY_LABELS[viewedDayKey]}</strong> ({statsDate}).
+              Users booking on this date will see the generic "Full Day" fallback instead of
+              your configured slots.
+            </p>
+          </div>
+        )}
 
         {/* Slots table */}
         {loading ? (
