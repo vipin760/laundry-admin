@@ -38,7 +38,9 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
           </div>
           <div className="ml-4">
             <div className="text-sm font-bold text-slate-900 dark:text-white">{service.name}</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px] mt-0.5">{service.description}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px] mt-0.5">
+              {service.instantDescription || service.scheduledDescription}
+            </div>
           </div>
         </div>
       </td>

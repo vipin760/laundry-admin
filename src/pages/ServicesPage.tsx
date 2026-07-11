@@ -23,7 +23,16 @@ export const ServicesPage: React.FC = () => {
   const [deactivatingService, setDeactivatingService] = useState<LaundryService | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-  const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
+  const [newService, setNewService] = useState({
+    name: '',
+    price: 100,
+    instantDescription: '',
+    scheduledDescription: '',
+    instantOrderPlacedMessage: '',
+    scheduledOrderPlacedMessage: '',
+    duration: '',
+    turnaroundHours: 24,
+  });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,7 +74,16 @@ export const ServicesPage: React.FC = () => {
     setIsAddModalOpen(false);
     setEditingId(null);
     setExistingImageUrl(null);
-    setNewService({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
+    setNewService({
+      name: '',
+      price: 100,
+      instantDescription: '',
+      scheduledDescription: '',
+      instantOrderPlacedMessage: '',
+      scheduledOrderPlacedMessage: '',
+      duration: '',
+      turnaroundHours: 24,
+    });
     setSelectedCategories([]);
     handleRemoveImage();
   };
@@ -134,7 +152,10 @@ export const ServicesPage: React.FC = () => {
     setNewService({
       name: service.name,
       price: service.price,
-      description: service.description,
+      instantDescription: service.instantDescription,
+      scheduledDescription: service.scheduledDescription,
+      instantOrderPlacedMessage: service.instantOrderPlacedMessage,
+      scheduledOrderPlacedMessage: service.scheduledOrderPlacedMessage,
       duration: service.duration || '',
       turnaroundHours: service.turnaroundHours ?? 24,
     });
@@ -524,13 +545,54 @@ export const ServicesPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Description</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      Instant Service Description
+                    </label>
                     <textarea
                       required
-                      placeholder="Briefly describe what this service includes..."
+                      placeholder="Describe this service for Instant (same-day) customers..."
                       className="input-premium h-24 resize-none"
-                      value={newService.description}
-                      onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                      value={newService.instantDescription}
+                      onChange={(e) => setNewService({ ...newService, instantDescription: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      Scheduled Service Description
+                    </label>
+                    <textarea
+                      required
+                      placeholder="Describe this service for Scheduled (time-slot) customers..."
+                      className="input-premium h-24 resize-none"
+                      value={newService.scheduledDescription}
+                      onChange={(e) => setNewService({ ...newService, scheduledDescription: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      Instant Order Placed Message
+                    </label>
+                    <textarea
+                      required
+                      placeholder="Shown on the Order Placed screen for Instant bookings, e.g. &quot;Your clothes will be cleaned and delivered within 60–90 minutes.&quot;"
+                      className="input-premium h-24 resize-none"
+                      value={newService.instantOrderPlacedMessage}
+                      onChange={(e) => setNewService({ ...newService, instantOrderPlacedMessage: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      Scheduled Order Placed Message
+                    </label>
+                    <textarea
+                      required
+                      placeholder="Shown on the Order Placed screen for Scheduled bookings, e.g. &quot;Your clothes will be delivered within 24 hours from the pickup time.&quot;"
+                      className="input-premium h-24 resize-none"
+                      value={newService.scheduledOrderPlacedMessage}
+                      onChange={(e) => setNewService({ ...newService, scheduledOrderPlacedMessage: e.target.value })}
                     />
                   </div>
                 </div>
