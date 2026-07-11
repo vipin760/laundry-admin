@@ -3,7 +3,10 @@ import { apiClient, BASE_URL } from './client';
 export interface LaundryService {
   _id: string;
   name: string;
-  description: string;
+  instantDescription: string;
+  scheduledDescription: string;
+  instantOrderPlacedMessage: string;
+  scheduledOrderPlacedMessage: string;
   price: number;
   categories?: string[];
   duration?: string;
@@ -32,7 +35,10 @@ export interface GetServicesResponse {
 export interface CreateServicePayload {
   name: string;
   price: number;
-  description: string;
+  instantDescription: string;
+  scheduledDescription: string;
+  instantOrderPlacedMessage: string;
+  scheduledOrderPlacedMessage: string;
   categories?: string[];
   duration?: string;
   turnaroundHours?: number;
