@@ -98,6 +98,7 @@ export function printOrder(order: Order): void {
   </div>
 
   <div class="meta">
+    <div><b>Customer:</b> ${esc(order.customerName ?? '—')}${order.customerPhone ? ' · ' + esc(order.customerPhone) : ''}</div>
     <div><b>Status:</b> ${esc(STATUS_LABELS[order.status] ?? order.status)}</div>
     <div><b>Payment:</b> ${esc(order.paymentStatus)}</div>
     <div><b>Pickup date:</b> ${dateStr(order.pickupDate)}</div>

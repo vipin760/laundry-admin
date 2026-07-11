@@ -95,6 +95,12 @@ export interface Order {
 
   userId: string;
 
+  /** Customer's name, looked up server-side from Users — for admin display/printing. */
+
+  customerName?: string;
+
+  customerPhone?: string;
+
   orderNumber?: string;
 
   items: OrderItem[];
