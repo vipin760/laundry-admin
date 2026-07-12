@@ -98,8 +98,12 @@ export function printOrder(order: Order): void {
   </div>
 
   <div class="meta">
+<<<<<<< HEAD
     <div><b>Customer:</b> ${esc(order.customerName ?? '—')}</div>
     <div><b>Contact Number:</b> ${esc(order.customerPhone ?? '—')}</div>
+=======
+    <div><b>Customer:</b> ${esc(order.customerName ?? '—')}${order.customerPhone ? ' · ' + esc(order.customerPhone) : ''}</div>
+>>>>>>> f5604108af768c6d49c3d037911f148f4cbdac8a
     <div><b>Status:</b> ${esc(STATUS_LABELS[order.status] ?? order.status)}</div>
     <div><b>Payment:</b> ${esc(order.paymentStatus)}</div>
     <div><b>Pickup date:</b> ${dateStr(order.pickupDate)}</div>

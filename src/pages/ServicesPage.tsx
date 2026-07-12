@@ -23,7 +23,18 @@ export const ServicesPage: React.FC = () => {
   const [deactivatingService, setDeactivatingService] = useState<LaundryService | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-  const [newService, setNewService] = useState({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
+  const [newService, setNewService] = useState({
+    name: '',
+    price: 100,
+    instantDescription: '',
+    scheduledDescription: '',
+    instantOrderPlacedMessage: '',
+    scheduledOrderPlacedMessage: '',
+    instantDuration: '',
+    scheduledDuration: '',
+    turnaroundHours: 24,
+    instantTurnaroundMinutes: 90,
+  });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -65,7 +76,18 @@ export const ServicesPage: React.FC = () => {
     setIsAddModalOpen(false);
     setEditingId(null);
     setExistingImageUrl(null);
-    setNewService({ name: '', price: 100, description: '', duration: '', turnaroundHours: 24 });
+    setNewService({
+      name: '',
+      price: 100,
+      instantDescription: '',
+      scheduledDescription: '',
+      instantOrderPlacedMessage: '',
+      scheduledOrderPlacedMessage: '',
+      instantDuration: '',
+      scheduledDuration: '',
+      turnaroundHours: 24,
+      instantTurnaroundMinutes: 90,
+    });
     setSelectedCategories([]);
     handleRemoveImage();
   };
@@ -134,9 +156,14 @@ export const ServicesPage: React.FC = () => {
     setNewService({
       name: service.name,
       price: service.price,
-      description: service.description,
-      duration: service.duration || '',
+      instantDescription: service.instantDescription,
+      scheduledDescription: service.scheduledDescription,
+      instantOrderPlacedMessage: service.instantOrderPlacedMessage,
+      scheduledOrderPlacedMessage: service.scheduledOrderPlacedMessage,
+      instantDuration: service.instantDuration || '',
+      scheduledDuration: service.scheduledDuration || '',
       turnaroundHours: service.turnaroundHours ?? 24,
+      instantTurnaroundMinutes: service.instantTurnaroundMinutes ?? 90,
     });
     setSelectedCategories(service.categories ?? []);
     setExistingImageUrl(service.imageUrl || null);
@@ -335,7 +362,7 @@ export const ServicesPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              className="relative bg-white dark:bg-slate-900 rounded-3xl p-8 w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
               <div className="flex justify-between items-center mb-8">
@@ -493,45 +520,146 @@ export const ServicesPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* ── Estimated Duration ── */}
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Estimated Duration</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 24 - 48 hrs"
-                      className="input-premium"
-                      value={newService.duration}
-                      onChange={(e) => setNewService({ ...newService, duration: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                      Delivery Turnaround (hours)
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      required
-                      placeholder="e.g. 24, or 48 for dry cleaning / shoe cleaning"
-                      className="input-premium"
-                      value={newService.turnaroundHours}
-                      onChange={(e) => setNewService({ ...newService, turnaroundHours: Number(e.target.value) })}
-                    />
-                    <p className="text-xs text-slate-400 mt-1.5">
-                      For Scheduled orders only — how long pickup-to-delivery takes for this service. An order
-                      with multiple services uses the longest one.
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">
+                      Estimated Duration
                     </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                          ⚡ Instant
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 60 - 90 mins"
+                          className="input-premium focus:ring-blue-500 focus:border-blue-500"
+                          value={newService.instantDuration}
+                          onChange={(e) => setNewService({ ...newService, instantDuration: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">
+                          🕐 Scheduled
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 24 - 48 hrs"
+                          className="input-premium focus:ring-orange-500 focus:border-orange-500"
+                          value={newService.scheduledDuration}
+                          onChange={(e) => setNewService({ ...newService, scheduledDuration: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
 
+                  {/* ── Delivery Turnaround ── */}
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Service Description</label>
-                    <textarea
-                      required
-                      placeholder="Briefly describe what this service includes..."
-                      className="input-premium h-24 resize-none"
-                      value={newService.description}
-                      onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                    />
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Delivery Turnaround
+                    </p>
+                    <p className="text-xs text-slate-400 mb-3">
+                      How long pickup-to-delivery takes for this service. An order with multiple services uses the longest one.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                          ⚡ Instant (minutes)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          required
+                          placeholder="e.g. 90"
+                          className="input-premium focus:ring-blue-500 focus:border-blue-500"
+                          value={newService.instantTurnaroundMinutes}
+                          onChange={(e) => setNewService({ ...newService, instantTurnaroundMinutes: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">
+                          🕐 Scheduled (hours)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          required
+                          placeholder="e.g. 24, or 48 for dry cleaning / shoe cleaning"
+                          className="input-premium focus:ring-orange-500 focus:border-orange-500"
+                          value={newService.turnaroundHours}
+                          onChange={(e) => setNewService({ ...newService, turnaroundHours: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Service Descriptions ── */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 mt-4">
+                      Service Descriptions
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                          ⚡ Instant
+                        </label>
+                        <textarea
+                          required
+                          placeholder="Describe this service for Instant (same-day) customers..."
+                          className="input-premium h-24 resize-none focus:ring-blue-500 focus:border-blue-500"
+                          value={newService.instantDescription}
+                          onChange={(e) => setNewService({ ...newService, instantDescription: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">
+                          🕐 Scheduled
+                        </label>
+                        <textarea
+                          required
+                          placeholder="Describe this service for Scheduled (time-slot) customers..."
+                          className="input-premium h-24 resize-none focus:ring-orange-500 focus:border-orange-500"
+                          value={newService.scheduledDescription}
+                          onChange={(e) => setNewService({ ...newService, scheduledDescription: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Order Placed Messages ── */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 mt-4">
+                      Order Placed Messages
+                    </p>
+                    <p className="text-xs text-slate-400 mb-3">
+                      Shown to the customer right after they place an order.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                          ⚡ Instant
+                        </label>
+                        <textarea
+                          required
+                          placeholder='e.g. "Your clothes will be cleaned and delivered within 60–90 minutes."'
+                          className="input-premium h-24 resize-none focus:ring-blue-500 focus:border-blue-500"
+                          value={newService.instantOrderPlacedMessage}
+                          onChange={(e) => setNewService({ ...newService, instantOrderPlacedMessage: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-2">
+                          🕐 Scheduled
+                        </label>
+                        <textarea
+                          required
+                          placeholder='e.g. "Your clothes will be delivered within 24 hours from the pickup time."'
+                          className="input-premium h-24 resize-none focus:ring-orange-500 focus:border-orange-500"
+                          value={newService.scheduledOrderPlacedMessage}
+                          onChange={(e) => setNewService({ ...newService, scheduledOrderPlacedMessage: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 

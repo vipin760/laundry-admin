@@ -17,6 +17,13 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
   const categoryVariant = (cat: string): 'blue' | 'orange' =>
     cat === 'instant' ? 'blue' : 'orange';
 
+  const cats = service.categories ?? [];
+  const durations = [
+    cats.includes('instant') && (service.instantDuration || `${service.instantTurnaroundMinutes ?? 90}m delivery`),
+    cats.includes('scheduled') && (service.scheduledDuration || `${service.turnaroundHours ?? 24}h delivery`),
+  ].filter(Boolean) as string[];
+  const durationText = durations.length > 0 ? durations.join(' · ') : '—';
+
   const getIconStyles = (name: string) => {
     const lowerName = name.toLowerCase();
     if (lowerName.includes('iron')) return 'bg-pink-50 dark:bg-pink-500/10 text-pink-500 dark:text-pink-400';
@@ -38,7 +45,9 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
           </div>
           <div className="ml-4">
             <div className="text-sm font-bold text-slate-900 dark:text-white">{service.name}</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px] mt-0.5">{service.description}</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px] mt-0.5">
+              {service.instantDescription || service.scheduledDescription}
+            </div>
           </div>
         </div>
       </td>
@@ -63,7 +72,7 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
       <td className="px-6 py-5 whitespace-nowrap">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
           <Clock size={14} className="text-slate-400" />
-          {service.duration || `${service.turnaroundHours ?? 24}h delivery`}
+          {durationText}
         </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">

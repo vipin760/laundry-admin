@@ -3,12 +3,20 @@ import { apiClient, BASE_URL } from './client';
 export interface LaundryService {
   _id: string;
   name: string;
-  description: string;
+  instantDescription: string;
+  scheduledDescription: string;
+  instantOrderPlacedMessage: string;
+  scheduledOrderPlacedMessage: string;
   price: number;
   categories?: string[];
-  duration?: string;
+  /** Estimated duration text shown to customers browsing the Instant (same-day) flow, e.g. "60-90 mins". */
+  instantDuration?: string;
+  /** Estimated duration text shown to customers browsing the Scheduled (time-slot) flow, e.g. "24-48 hrs". */
+  scheduledDuration?: string;
   /** Hours between pickup and delivery for scheduled orders of this service (e.g. 24, 48). Defaults to 24. */
   turnaroundHours?: number;
+  /** Minutes between pickup and delivery for instant orders of this service (e.g. 60, 90). Defaults to 90. */
+  instantTurnaroundMinutes?: number;
   icon?: string;
   imageUrl?: string;
   isAvailable?: boolean;
@@ -32,10 +40,15 @@ export interface GetServicesResponse {
 export interface CreateServicePayload {
   name: string;
   price: number;
-  description: string;
+  instantDescription: string;
+  scheduledDescription: string;
+  instantOrderPlacedMessage: string;
+  scheduledOrderPlacedMessage: string;
   categories?: string[];
-  duration?: string;
+  instantDuration?: string;
+  scheduledDuration?: string;
   turnaroundHours?: number;
+  instantTurnaroundMinutes?: number;
   icon?: string;
   imageUrl?: string;
   isAvailable?: boolean;

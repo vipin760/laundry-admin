@@ -34,6 +34,8 @@ import { usersApi, type User as AppUser } from '../api/usersApi';
 
 import { OrderPhotoManager } from '../components/OrderPhotoManager';
 
+import { ClothTypeCombobox } from '../components/ClothTypeCombobox';
+
 
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -939,32 +941,18 @@ const OrderDetailPanel: React.FC<{
 
                     {form.clothTypeBreakdown.map((item, idx) => (
                       <div key={idx} className="flex gap-2 items-start">
-                        <select
+                        <ClothTypeCombobox
+                          clothTypes={clothTypes}
+                          clothTypesByCategory={clothTypesByCategory}
                           value={item.clothTypeId}
-                          onChange={(e) => {
+                          onChange={(id) => {
                             setForm(f => {
                               const newBreakdown = [...f.clothTypeBreakdown];
-                              newBreakdown[idx] = { ...newBreakdown[idx], clothTypeId: e.target.value };
+                              newBreakdown[idx] = { ...newBreakdown[idx], clothTypeId: id };
                               return { ...f, clothTypeBreakdown: newBreakdown };
                             });
                           }}
-                          className="flex-1 px-2 py-1.5 text-xs rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5"
-                        >
-                          <option value="">Select cloth type</option>
-                          {[...clothTypesByCategory.entries()].map(([category, items]) => {
-                            if (items.length === 0) return null;
-                            const label = category === 'uncategorized'
-                              ? 'Uncategorized'
-                              : CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS];
-                            return (
-                              <optgroup key={category} label={label}>
-                                {items.map(c => (
-                                  <option key={c._id} value={c._id}>{c.name}</option>
-                                ))}
-                              </optgroup>
-                            );
-                          })}
-                        </select>
+                        />
 
                         <select
                           value={item.serviceType}
