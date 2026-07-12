@@ -1742,6 +1742,10 @@ export const OrdersPage: React.FC = () => {
 
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Order #</th>
 
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Customer</th>
+
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile</th>
+
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Items</th>
 
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Type</th>
@@ -1785,6 +1789,20 @@ export const OrdersPage: React.FC = () => {
                       <td className="px-5 py-4 font-mono font-bold text-slate-800 dark:text-white text-xs">
 
                         #{order.orderNumber ?? order._id.slice(-6).toUpperCase()}
+
+                      </td>
+
+                      <td className="px-5 py-4 max-w-[140px]">
+
+                        {order.customerName
+                          ? <span className="font-semibold text-slate-800 dark:text-white truncate block">{order.customerName}</span>
+                          : <span className="text-slate-400 text-xs italic">Unknown</span>}
+
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
+
+                        {order.customerPhone ?? '—'}
 
                       </td>
 
