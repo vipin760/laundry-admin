@@ -252,7 +252,7 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
 
   OUT_FOR_DELIVERY: 'Out for Delivery',
 
-  READY_FOR_PICKUP: 'Ready for Pickup',
+  READY_FOR_PICKUP: 'Ready for Delivery',
 
   COMPLETED:        'Delivered',
 
