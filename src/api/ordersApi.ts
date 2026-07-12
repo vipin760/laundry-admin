@@ -147,6 +147,15 @@ export interface Order {
 
   billAmount?: number;
 
+  /**
+   * Snapshot of billAmount before the first-order discount was subtracted.
+   * Only set when firstOrderDiscountAmount > 0.
+   */
+  originalBillAmount?: number;
+
+  /** Amount knocked off billAmount because this was the customer's first order. */
+  firstOrderDiscountAmount?: number;
+
   clothTypeBreakdown?: {
     clothTypeId: string;
     clothTypeName: string;

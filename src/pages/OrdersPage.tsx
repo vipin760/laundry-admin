@@ -604,6 +604,12 @@ const OrderDetailPanel: React.FC<{
 
             }
 
+            {!!order.firstOrderDiscountAmount && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-pink-50 text-pink-700 border-pink-200">
+                🎁 First Order · −₹{order.firstOrderDiscountAmount}
+              </span>
+            )}
+
             <span className="text-xs text-slate-400">{new Date(order.updatedAt).toLocaleString('en-IN')}</span>
 
           </div>
@@ -664,9 +670,25 @@ const OrderDetailPanel: React.FC<{
 
                     <span className="font-black text-green-700">₹{order.billAmount}</span>
 
-                    {order.billAmount !== order.totalAmount && (
+                    {!order.firstOrderDiscountAmount && order.billAmount !== order.totalAmount && (
 
                       <span className="ml-2 text-xs text-slate-400 line-through">₹{order.totalAmount}</span>
+
+                    )}
+
+                    {!!order.firstOrderDiscountAmount && order.originalBillAmount != null && (
+
+                      <span className="ml-2 text-xs text-slate-400 line-through">₹{order.originalBillAmount}</span>
+
+                    )}
+
+                    {!!order.firstOrderDiscountAmount && (
+
+                      <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-50 text-pink-700 border border-pink-200">
+
+                        🎁 First Order Offer · Saved ₹{order.firstOrderDiscountAmount}
+
+                      </span>
 
                     )}
 
@@ -787,9 +809,19 @@ const OrderDetailPanel: React.FC<{
 
                 {order.billAmount != null && <Stat icon={<Receipt size={13}/>} label="Bill"    value={`₹${order.billAmount}`} color="text-green-700" />}
 
+                {!!order.firstOrderDiscountAmount && (
+                  <Stat icon={<Receipt size={13}/>} label="First Order Offer" value={`−₹${order.firstOrderDiscountAmount}`} color="text-pink-600" />
+                )}
+
                 {order.pickupTime && <Stat icon={<Clock size={13}/>}           label="Pickup"  value={order.pickupTime} />}
 
               </div>
+
+              {!!order.firstOrderDiscountAmount && order.originalBillAmount != null && (
+                <p className="text-[11px] text-pink-600 mt-3 flex items-center gap-1">
+                  🎁 Customer's first order — original bill was <span className="line-through">₹{order.originalBillAmount}</span>, discounted to <b>₹{order.billAmount}</b>.
+                </p>
+              )}
 
             </div>
 
@@ -1786,9 +1818,15 @@ export const OrdersPage: React.FC = () => {
 
                       onClick={() => setSelected(order)}>
 
-                      <td className="px-5 py-4 font-mono font-bold text-slate-800 dark:text-white text-xs">
+                      <td className="px-5 py-4 font-mono font-bold text-slate-800 dark:text-white text-xs whitespace-nowrap">
 
                         #{order.orderNumber ?? order._id.slice(-6).toUpperCase()}
+
+                        <div className="font-sans font-medium text-slate-400 normal-case text-[10px] mt-0.5">
+
+                          {new Date(order.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+
+                        </div>
 
                       </td>
 
@@ -1826,11 +1864,23 @@ export const OrdersPage: React.FC = () => {
 
                       <td className="px-5 py-4 font-bold text-slate-800 dark:text-white">
 
-                        {order.billAmount
-
-                          ? <span className="text-green-700">₹{order.billAmount}</span>
-
-                          : <span className="text-slate-400 text-xs italic">Pending</span>}
+                        {order.billAmount ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-green-700">₹{order.billAmount}</span>
+                              {!!order.firstOrderDiscountAmount && order.originalBillAmount != null && (
+                                <span className="text-[10px] text-slate-400 line-through">₹{order.originalBillAmount}</span>
+                              )}
+                            </div>
+                            {!!order.firstOrderDiscountAmount && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-pink-50 text-pink-700 border border-pink-200 w-fit whitespace-nowrap">
+                                🎁 First Order · −₹{order.firstOrderDiscountAmount}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-xs italic">Pending</span>
+                        )}
 
                       </td>
 
