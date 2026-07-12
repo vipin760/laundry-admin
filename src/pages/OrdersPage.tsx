@@ -110,9 +110,9 @@ const SELF_PICKUP_STEPS: { key: OrderStatus; label: string }[] = [
 
   { key: 'PROCESSING',       label: 'Brewing'   },
 
-  { key: 'READY_FOR_PICKUP', label: 'Ready for Pickup' },
+  { key: 'READY_FOR_PICKUP', label: 'Ready for Delivery' },
 
-  { key: 'COMPLETED',        label: 'Picked Up' },
+  { key: 'COMPLETED',        label: 'Delivered' },
 
 ];
 
@@ -1456,7 +1456,7 @@ const ALL_STATUSES: Array<{ value: OrderStatus | ''; label: string }> = [
 
   { value: 'OUT_FOR_DELIVERY',label: 'Out for Delivery' },
 
-  { value: 'READY_FOR_PICKUP',label: 'Ready for Pickup' },
+  { value: 'READY_FOR_PICKUP',label: 'Ready for Delivery' },
 
   { value: 'COMPLETED',       label: 'Delivered'        },
 
