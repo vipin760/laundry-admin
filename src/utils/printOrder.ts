@@ -1,6 +1,6 @@
 import type { Order } from '../api/ordersApi';
 import { STATUS_LABELS } from '../api/ordersApi';
-import brandLogo from '../assets/laudry_brew_icon.png';
+import brandLogo from '../assets/image.png';
 
 const esc = (v: unknown): string =>
   String(v ?? '')
