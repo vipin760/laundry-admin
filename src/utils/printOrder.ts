@@ -1,5 +1,6 @@
 import type { Order } from '../api/ordersApi';
 import { STATUS_LABELS } from '../api/ordersApi';
+import brandLogo from '../assets/laudry_brew_icon.png';
 
 const esc = (v: unknown): string =>
   String(v ?? '')
@@ -64,7 +65,8 @@ export function printOrder(order: Order): void {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; padding: 32px; font-size: 13px; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #2453FF; padding-bottom: 16px; }
-  .brand { font-size: 24px; font-weight: 800; color: #2453FF; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 800; color: #2453FF; }
+  .brand img { width: 34px; height: 34px; flex-shrink: 0; object-fit: contain; border-radius: 6px; }
   .brand small { display: block; font-size: 11px; color: #64748b; font-weight: 500; margin-top: 2px; }
   .orderno { text-align: right; }
   .orderno .no { font-size: 18px; font-weight: 800; }
@@ -89,7 +91,10 @@ export function printOrder(order: Order): void {
 </head>
 <body>
   <div class="head">
-    <div class="brand">🧺 LaundryBrew<small>Laundry &amp; Dry Cleaning Services</small></div>
+    <div class="brand">
+      <img src="${brandLogo}" alt="LaundryBrew" />
+      <div>LaundryBrew<small>Laundry &amp; Dry Cleaning Services</small></div>
+    </div>
     <div class="orderno">
       <div class="no">Order #${esc(orderNo)}</div>
       <div style="color:#64748b; font-size:12px; margin-top:2px;">Placed: ${dateStr(order.createdAt)}</div>

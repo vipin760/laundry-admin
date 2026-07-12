@@ -10,7 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import brandLogo from '../assets/laudry_brew_icon.png';
+import brandLogo from '../assets/image.png';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
