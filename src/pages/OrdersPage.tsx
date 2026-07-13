@@ -28,7 +28,7 @@ import type { ClothType } from '../api/clothTypesApi';
 
 import { CATEGORY_LABELS, CATEGORY_ORDER } from '../constants/clothTypeCategories';
 
-import { STATUS_LABELS, getNextStatus, ordersApi } from '../api/ordersApi';
+import { STATUS_LABELS, pickupTypeLabel, getNextStatus, ordersApi } from '../api/ordersApi';
 
 import { usersApi, type User as AppUser } from '../api/usersApi';
 
@@ -709,6 +709,10 @@ const OrderDetailPanel: React.FC<{
               </Row>
 
             )}
+
+            <Row icon={<Truck size={14} />} label="Pickup Method">
+              <span className="text-xs">{pickupTypeLabel(order.pickupType)}</span>
+            </Row>
 
             <Row icon={<Package size={14} />} label="Return">
 
@@ -1835,6 +1839,10 @@ export const OrdersPage: React.FC = () => {
                         {order.customerName
                           ? <span className="font-semibold text-slate-800 dark:text-white truncate block">{order.customerName}</span>
                           : <span className="text-slate-400 text-xs italic">Unknown</span>}
+
+                        <div className="font-medium text-slate-400 text-[10px] mt-0.5">
+                          {pickupTypeLabel(order.pickupType)}
+                        </div>
 
                       </td>
 
