@@ -8,7 +8,9 @@ export interface User {
   email?: string;          // may be absent for mobile-only users
   mobileNumber?: string;
   role: UserRole;
-  isActive: boolean;
+  isActive: boolean;        // block/unblock flag only — stays true for deleted accounts
+  isDeleted?: boolean;
+  accountStatus?: string;   // e.g. "DELETED"
   createdAt: string;
   updatedAt: string;
 }

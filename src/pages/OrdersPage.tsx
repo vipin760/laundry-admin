@@ -304,7 +304,7 @@ const OrderDetailPanel: React.FC<{
 
     usersApi.getUsers()
 
-      .then((users) => setPartners(users.filter((u) => u.role === 'delivery_partner' && u.isActive)))
+      .then((users) => setPartners(users.filter((u) => u.role === 'delivery_partner' && u.isActive && !u.isDeleted && u.accountStatus !== 'DELETED')))
 
       .catch(() => setPartners([]))
 
