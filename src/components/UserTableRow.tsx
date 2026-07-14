@@ -42,6 +42,12 @@ export const UserTableRow: React.FC<UserTableRowProps> = ({
   const initials = (user.name ?? '?').charAt(0).toUpperCase();
   const isAdmin  = user.role === 'admin';
 
+  // Deletion takes priority over the block/unblock flag (isActive), which
+  // stays true for deleted accounts.
+  const isDeleted     = user.isDeleted === true || user.accountStatus === 'DELETED';
+  const statusText    = isDeleted ? 'Deleted' : user.isActive !== false ? 'Active' : 'Blocked';
+  const statusVariant = isDeleted ? 'red' : user.isActive !== false ? 'green' : 'red';
+
   return (
     <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
 
@@ -53,11 +59,7 @@ export const UserTableRow: React.FC<UserTableRowProps> = ({
           </div>
           <div>
             <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{user.name ?? '—'}</p>
-            <Badge
-              text={user.isActive !== false ? 'Active' : 'Blocked'}
-              variant={user.isActive !== false ? 'green' : 'red'}
-              dot
-            />
+            <Badge text={statusText} variant={statusVariant} dot />
           </div>
         </div>
       </td>
@@ -120,11 +122,7 @@ export const UserTableRow: React.FC<UserTableRowProps> = ({
 
       {/* Status badge (redundant with inline above but kept for scannability) */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge
-          text={user.isActive !== false ? 'Active' : 'Blocked'}
-          variant={user.isActive !== false ? 'green' : 'red'}
-          dot
-        />
+        <Badge text={statusText} variant={statusVariant} dot />
       </td>
 
       {/* Actions */}

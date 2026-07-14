@@ -28,7 +28,7 @@ export const UsersPage: React.FC = () => {
   const addressModalUser = users.find((u) => u._id === addressModalUserId);
 
   const totalUsers       = users.length;
-  const activeUsers      = users.filter(u => u.isActive !== false).length;
+  const activeUsers      = users.filter(u => !u.isDeleted && u.accountStatus !== 'DELETED' && u.isActive !== false).length;
   const deliveryPartners = users.filter(u => u.role === 'delivery_partner').length;
 
   return (
