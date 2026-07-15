@@ -13,10 +13,19 @@ interface UsersState {
   addressesLoading: boolean;
   addressesError: string | null;
 
+  // Profile edit (name / email / mobile)
+  editUserId: string | null;
+  editUserSaving: boolean;
+  editUserError: string | null;
+
   fetchUsers: () => Promise<void>;
   blockUser: (id: string) => Promise<void>;
   unblockUser: (id: string) => Promise<void>;
   changeRole: (id: string, role: UserRole) => Promise<void>;
+
+  openEditUser: (userId: string) => void;
+  closeEditUser: () => void;
+  updateUser: (payload: { name?: string; email?: string; mobileNumber?: string }) => Promise<void>;
 
   openAddressModal: (userId: string) => Promise<void>;
   closeAddressModal: () => void;
@@ -35,6 +44,10 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   addresses: [],
   addressesLoading: false,
   addressesError: null,
+
+  editUserId: null,
+  editUserSaving: false,
+  editUserError: null,
 
   fetchUsers: async () => {
     set({ isLoading: true, error: null });
@@ -70,6 +83,36 @@ export const useUsersStore = create<UsersState>((set, get) => ({
       set({ users: get().users.map((u) => (u._id === id ? updatedUser : u)) });
     } catch (err: any) {
       set({ error: err.response?.data?.message || 'Failed to change role' });
+    }
+  },
+
+  openEditUser: (userId: string) => {
+    set({ editUserId: userId, editUserError: null });
+  },
+
+  closeEditUser: () => {
+    set({ editUserId: null, editUserError: null });
+  },
+
+  updateUser: async (payload) => {
+    const userId = get().editUserId;
+    if (!userId) return;
+    set({ editUserSaving: true, editUserError: null });
+    try {
+      const updated = await usersApi.updateUser(userId, payload);
+      set({
+        users: get().users.map((u) => (u._id === userId ? updated : u)),
+        editUserSaving: false,
+        editUserId: null,
+      });
+    } catch (err: any) {
+      // apiClient throws a plain Error(message) — not axios — so the
+      // server's message (e.g. "Email is already in use...") lives on
+      // err.message, not err.response.data.message.
+      set({
+        editUserError: err.message || 'Failed to update user',
+        editUserSaving: false,
+      });
     }
   },
 

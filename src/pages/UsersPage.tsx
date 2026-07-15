@@ -3,12 +3,14 @@ import { AdminLayout } from '../layouts/AdminLayout';
 import { useUsersStore } from '../store/useUsersStore';
 import { UserTableRow } from '../components/UserTableRow';
 import { UserAddressModal } from '../components/UserAddressModal';
+import { UserEditModal } from '../components/UserEditModal';
 import { Search, Loader2, Users } from 'lucide-react';
 
 export const UsersPage: React.FC = () => {
   const {
     users, isLoading, error, fetchUsers, blockUser, unblockUser, changeRole,
     addressModalUserId, openAddressModal,
+    editUserId, openEditUser,
   } = useUsersStore();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -26,6 +28,7 @@ export const UsersPage: React.FC = () => {
   });
 
   const addressModalUser = users.find((u) => u._id === addressModalUserId);
+  const editModalUser = users.find((u) => u._id === editUserId);
 
   const totalUsers       = users.length;
   const activeUsers      = users.filter(u => !u.isDeleted && u.accountStatus !== 'DELETED' && u.isActive !== false).length;
@@ -116,6 +119,7 @@ export const UsersPage: React.FC = () => {
                     onUnblock={unblockUser}
                     onChangeRole={changeRole}
                     onManageAddresses={openAddressModal}
+                    onEditProfile={openEditUser}
                   />
                 ))
               )}
@@ -133,6 +137,8 @@ export const UsersPage: React.FC = () => {
       {addressModalUserId && (
         <UserAddressModal userName={addressModalUser?.name ?? 'User'} />
       )}
+
+      {editUserId && <UserEditModal user={editModalUser} />}
     </AdminLayout>
   );
 };
