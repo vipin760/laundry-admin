@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, ShieldOff, MapPin, Phone, Mail, Calendar, ChevronDown } from 'lucide-react';
+import { Shield, ShieldOff, MapPin, Phone, Mail, Calendar, ChevronDown, Pencil } from 'lucide-react';
 import { Badge } from './Badge';
 import type { UserRole } from '../api/usersApi';
 
@@ -9,6 +9,7 @@ interface UserTableRowProps {
   onUnblock: (id: string) => void;
   onChangeRole: (id: string, role: UserRole) => Promise<void>;
   onManageAddresses: (id: string) => void;
+  onEditProfile: (id: string) => void;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ const ROLE_BADGE_VARIANT: Record<string, 'purple' | 'blue' | 'orange'> = {
 };
 
 export const UserTableRow: React.FC<UserTableRowProps> = ({
-  user, onBlock, onUnblock, onChangeRole, onManageAddresses,
+  user, onBlock, onUnblock, onChangeRole, onManageAddresses, onEditProfile,
 }) => {
   const [roleLoading, setRoleLoading] = useState(false);
 
@@ -151,6 +152,13 @@ export const UserTableRow: React.FC<UserTableRowProps> = ({
           >
             <MapPin size={13} />
             Addresses
+          </button>
+          <button
+            onClick={() => onEditProfile(user._id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/10 transition-all border border-slate-200 dark:border-white/10"
+          >
+            <Pencil size={13} />
+            Edit
           </button>
         </div>
       </td>
