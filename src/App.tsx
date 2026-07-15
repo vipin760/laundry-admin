@@ -1,200 +1,104 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-
 import { AuthProvider } from './context/AuthContext';
-
 import { ProtectedRoute } from './components/ProtectedRoute';
-
 import { LoginPage } from './pages/LoginPage';
-
 import { HomePage } from './pages/HomePage';
-
 import { UsersPage } from './pages/UsersPage';
-
 import { ServicesPage } from './pages/ServicesPage';
-
 import { OrdersPage } from './pages/OrdersPage';
-
 import { MessagesPage } from './pages/MessagesPage';
-
 import { LocationsPage } from './pages/LocationsPage';
-
 import { TimeSlotsPage } from './pages/TimeSlotsPage';
-
 import { ClothTypesPage } from './pages/ClothTypesPage';
-
 import { ReferralPage } from './pages/ReferralPage';
-
 import { ReferralAnalyticsPage } from './pages/ReferralAnalyticsPage';
-
 import { DeleteRequestsPage } from './pages/DeleteRequestsPage';
-
+import { CouponsListPage } from './pages/CouponsListPage';
+import { CouponFormPage } from './pages/CouponFormPage';
+import { CouponDetailsPage } from './pages/CouponDetailsPage';
 import './App.css';
-
-
 
 import { ThemeProvider } from './context/ThemeContext';
 
-
-
 function App() {
-
   return (
-
     <Router>
-
       <ThemeProvider>
-
         <AuthProvider>
-
           <Routes>
-
             <Route path="/login" element={<LoginPage />} />
 
-            
-
             <Route
-
               path="/home"
-
               element={
-
                 <ProtectedRoute>
-
                   <HomePage />
-
                 </ProtectedRoute>
-
               }
-
             />
 
-            
-
             <Route
-
               path="/users"
-
               element={
-
                 <ProtectedRoute>
-
                   <UsersPage />
-
                 </ProtectedRoute>
-
               }
-
             />
 
-            
-
             <Route
-
               path="/services"
-
               element={
-
                 <ProtectedRoute>
-
                   <ServicesPage />
-
                 </ProtectedRoute>
-
               }
-
             />
 
-
-
             <Route
-
               path="/cloth-types"
-
               element={
-
                 <ProtectedRoute>
-
                   <ClothTypesPage />
-
                 </ProtectedRoute>
-
               }
-
             />
 
-
-
             <Route
-
               path="/orders"
-
               element={
-
                 <ProtectedRoute>
-
                   <OrdersPage />
-
                 </ProtectedRoute>
-
               }
-
             />
 
-
-
             <Route
-
               path="/locations"
-
               element={
-
                 <ProtectedRoute>
-
                   <LocationsPage />
-
                 </ProtectedRoute>
-
               }
-
             />
 
-
-
             <Route
-
               path="/messages"
-
               element={
-
                 <ProtectedRoute>
-
                   <MessagesPage />
-
                 </ProtectedRoute>
-
               }
-
             />
-
-            
 
             <Route
-
               path="/time-slots"
-
               element={
-
                 <ProtectedRoute>
-
                   <TimeSlotsPage />
-
                 </ProtectedRoute>
-
               }
-
             />
-
-
 
             <Route
               path="/referrals"
@@ -223,21 +127,48 @@ function App() {
               }
             />
 
+            <Route
+              path="/coupons"
+              element={
+                <ProtectedRoute>
+                  <CouponsListPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/coupons/new"
+              element={
+                <ProtectedRoute>
+                  <CouponFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/coupons/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <CouponFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/coupons/:id"
+              element={
+                <ProtectedRoute>
+                  <CouponDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+
             <Route path="/" element={<Navigate to="/login" replace />} />
-
           </Routes>
-
         </AuthProvider>
-
       </ThemeProvider>
-
     </Router>
-
   );
-
 }
 
-
-
 export default App;
-

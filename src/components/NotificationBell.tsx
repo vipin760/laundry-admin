@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, CheckCheck, PackageOpen, XCircle, CreditCard, CheckCircle2, X, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, PackageOpen, XCircle, CreditCard, CheckCircle2, X, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { notificationsApi } from '../api/notificationsApi';
 import type { AppNotification } from '../api/notificationsApi';
 
 const POLL_MS = 30_000;
+const SOUND_SRC = '/notification-sound.mp3';
+const SOUND_PREF_KEY = 'admin-notification-sound-enabled';
 
 const typeIcon = (type?: string) => {
   switch (type) {
@@ -33,11 +35,50 @@ export const NotificationBell: React.FC = () => {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Sound cue for newly-arrived (polled) notifications ─────────────────────
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SOUND_PREF_KEY) !== 'false';
+    } catch {
+      return true;
+    }
+  });
+  const soundEnabledRef = useRef(soundEnabled);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // null until the first successful fetch resolves, so we never chime for
+  // notifications that already existed before this session started polling.
+  const prevUnreadRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio(SOUND_SRC);
+    audioRef.current.preload = 'auto';
+  }, []);
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+    try {
+      localStorage.setItem(SOUND_PREF_KEY, String(soundEnabled));
+    } catch {
+      // localStorage may be unavailable (private browsing, etc.) — the
+      // toggle still works for the current session either way.
+    }
+  }, [soundEnabled]);
+
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await notificationsApi.getAdminNotifications();
       setItems(res.data);
       setUnread(res.unread);
+
+      const prev = prevUnreadRef.current;
+      if (prev !== null && res.unread > prev && soundEnabledRef.current) {
+        audioRef.current?.play().catch(() => {
+          // Browsers block autoplay until the admin has interacted with the
+          // page at least once — sound is a best-effort cue on top of the
+          // existing badge/list, so a rejected play() is safe to ignore.
+        });
+      }
+      prevUnreadRef.current = res.unread;
     } catch {
       // silent — the bell simply shows no badge if the fetch fails
     }
@@ -75,6 +116,7 @@ export const NotificationBell: React.FC = () => {
 
   const handleMarkAllRead = async () => {
     setUnread(0);
+    prevUnreadRef.current = 0;
     setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
     try {
       await notificationsApi.markAdminRead();
@@ -86,7 +128,11 @@ export const NotificationBell: React.FC = () => {
   const handleMarkOneRead = async (id: string, wasRead: boolean) => {
     if (wasRead) return;
     setItems((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
-    setUnread((u) => Math.max(0, u - 1));
+    setUnread((u) => {
+      const next = Math.max(0, u - 1);
+      prevUnreadRef.current = next;
+      return next;
+    });
     try {
       await notificationsApi.markAdminOneRead(id);
     } catch {
@@ -97,7 +143,13 @@ export const NotificationBell: React.FC = () => {
   const handleDismiss = async (e: React.MouseEvent, id: string, wasRead: boolean) => {
     e.stopPropagation();
     setItems((prev) => prev.filter((n) => n._id !== id));
-    if (!wasRead) setUnread((u) => Math.max(0, u - 1));
+    if (!wasRead) {
+      setUnread((u) => {
+        const next = Math.max(0, u - 1);
+        prevUnreadRef.current = next;
+        return next;
+      });
+    }
     try {
       await notificationsApi.deleteAdminOne(id);
     } catch {
@@ -108,6 +160,7 @@ export const NotificationBell: React.FC = () => {
   const handleClearAll = async () => {
     setItems([]);
     setUnread(0);
+    prevUnreadRef.current = 0;
     try {
       await notificationsApi.clearAdmin();
     } catch {
@@ -178,6 +231,13 @@ export const NotificationBell: React.FC = () => {
                 )}
               </h3>
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSoundEnabled((s) => !s)}
+                  title={soundEnabled ? 'Mute notification sound' : 'Unmute notification sound'}
+                  className="text-slate-400 hover:text-brand"
+                >
+                  {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                </button>
                 {unread > 0 && (
                   <button
                     onClick={handleMarkAllRead}

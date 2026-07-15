@@ -66,7 +66,13 @@ export const MessagesPage: React.FC = () => {
     const socket = io(supportSocketUrl, {
       auth: { token },
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      // Polling first, then upgrade to websocket once the session is
+      // established — engine.io's normal negotiation. Forcing 'websocket'
+      // first skips that handshake and gets closed immediately behind
+      // reverse proxies/tunnels that don't support a bare upgrade request
+      // (e.g. "WebSocket is closed before the connection is established"
+      // on VS Code dev tunnels).
+      transports: ['polling', 'websocket'],
     });
 
     socketRef.current = socket;

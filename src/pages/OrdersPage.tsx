@@ -1530,7 +1530,9 @@ export const OrdersPage: React.FC = () => {
 
       withCredentials: true,
 
-      transports: ['websocket', 'polling'],
+      // Polling first, then upgrade to websocket — see MessagesPage.tsx for
+      // why forcing 'websocket' first breaks behind tunnels/reverse proxies.
+      transports: ['polling', 'websocket'],
 
     });
 

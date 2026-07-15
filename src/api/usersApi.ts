@@ -67,10 +67,25 @@ export const usersApi = {
     });
   },
 
+  updateUser: async (
+    id: string,
+    payload: Partial<Pick<User, 'name' | 'email' | 'mobileNumber'>>,
+  ): Promise<User> => {
+    return apiClient(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // ── Address management ───────────────────────────────────────────────────
 
   getAddresses: async (userId: string): Promise<UserAddress[]> => {
-    return apiClient(`/users/${userId}/addresses`);
+    // Backend returns a paginated { data, total, page, limit } envelope
+    // (GET /users/:id/addresses -> UsersService.getAddresses), not a bare
+    // array — unwrap it here so callers can keep treating this as UserAddress[].
+    const res = await apiClient(`/users/${userId}/addresses`);
+    if (Array.isArray(res)) return res;
+    return Array.isArray(res?.data) ? res.data : [];
   },
 
   addAddress: async (userId: string, payload: UserAddressPayload): Promise<UserAddress> => {
