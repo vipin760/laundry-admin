@@ -28,7 +28,7 @@ import type { ClothType } from '../api/clothTypesApi';
 
 import { CATEGORY_LABELS, CATEGORY_ORDER } from '../constants/clothTypeCategories';
 
-import { STATUS_LABELS, getNextStatus, ordersApi } from '../api/ordersApi';
+import { STATUS_LABELS, pickupTypeLabel, getNextStatus, ordersApi } from '../api/ordersApi';
 
 import { usersApi, type User as AppUser } from '../api/usersApi';
 
@@ -304,7 +304,7 @@ const OrderDetailPanel: React.FC<{
 
     usersApi.getUsers()
 
-      .then((users) => setPartners(users.filter((u) => u.role === 'delivery_partner' && u.isActive)))
+      .then((users) => setPartners(users.filter((u) => u.role === 'delivery_partner' && u.isActive && !u.isDeleted && u.accountStatus !== 'DELETED')))
 
       .catch(() => setPartners([]))
 
@@ -710,6 +710,10 @@ const OrderDetailPanel: React.FC<{
 
             )}
 
+            <Row icon={<Truck size={14} />} label="Pickup Method">
+              <span className="text-xs">{pickupTypeLabel(order.pickupType)}</span>
+            </Row>
+
             <Row icon={<Package size={14} />} label="Return">
 
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${
@@ -1109,25 +1113,21 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* PROCESSING → OUT_FOR_DELIVERY: payment must be done + partner assigned */}
+              {/* PROCESSING → OUT_FOR_DELIVERY: dispatch first, payment happens after */}
 
               {nextStatus === 'OUT_FOR_DELIVERY' && (
 
-                paymentPending
+                  <div className="space-y-3">
 
-                  ? <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-semibold">
-
-                      ⚠️ Cannot dispatch — user has not completed payment yet.
-
-                    </div>
-
-                  : <div className="space-y-3">
-
-                      <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">
+                      {paymentPending
+                        ? <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 font-semibold flex items-center gap-1.5">
+                            <Clock size={13}/> Waiting for customer payment. The delivery OTP will be generated once they pay.
+                          </div>
+                        : <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-700 font-semibold flex items-center gap-1.5">
 
                         <ShieldCheck size={13}/> Payment confirmed. Delivery OTP is ready.
 
-                      </div>
+                      </div>}
 
                       <div>
 
@@ -1189,16 +1189,16 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* PROCESSING → READY_FOR_PICKUP: self-pickup orders — payment must be
-                  done, no driver/partner assignment needed. */}
+              {/* PROCESSING → READY_FOR_PICKUP: self-pickup orders — mark ready first,
+                  payment happens after, no driver/partner assignment needed. */}
 
               {nextStatus === 'READY_FOR_PICKUP' && (
 
                 paymentPending
 
-                  ? <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-semibold">
+                  ? <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 font-semibold flex items-center gap-1.5">
 
-                      ⚠️ Cannot mark ready — user has not completed payment yet.
+                      <Clock size={13}/> Waiting for customer payment. The delivery OTP will be generated once they pay.
 
                     </div>
 
@@ -1252,21 +1252,15 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              {/* Disable OUT_FOR_DELIVERY/READY_FOR_PICKUP advance if payment pending */}
+              <button onClick={handleAdvance} disabled={saving}
 
-              {!((nextStatus === 'OUT_FOR_DELIVERY' || nextStatus === 'READY_FOR_PICKUP') && paymentPending) && (
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2">
 
-                <button onClick={handleAdvance} disabled={saving}
+                {saving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}
 
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                {saving ? 'Updating…' : `Mark as ${STATUS_LABELS[nextStatus]}`}
 
-                  {saving ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}
-
-                  {saving ? 'Updating…' : `Mark as ${STATUS_LABELS[nextStatus]}`}
-
-                </button>
-
-              )}
+              </button>
 
             </div>
 
@@ -1835,6 +1829,10 @@ export const OrdersPage: React.FC = () => {
                         {order.customerName
                           ? <span className="font-semibold text-slate-800 dark:text-white truncate block">{order.customerName}</span>
                           : <span className="text-slate-400 text-xs italic">Unknown</span>}
+
+                        <div className="font-medium text-slate-400 text-[10px] mt-0.5">
+                          {pickupTypeLabel(order.pickupType)}
+                        </div>
 
                       </td>
 

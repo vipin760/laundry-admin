@@ -26,6 +26,8 @@ export type OrderStatus =
 
 export type DeliveryType = 'HOME_DELIVERY' | 'SELF_PICKUP';
 
+export type PickupType = 'collect_from_home' | 'drop_at_shop' | 'home_reception';
+
 
 
 export interface DeliveryAddress {
@@ -112,6 +114,10 @@ export interface Order {
   paymentStatus: string;
 
   address?: string;
+
+  /** How the dirty laundry was collected from the customer. Absent on orders placed before this field existed. */
+
+  pickupType?: PickupType;
 
   /** How the finished order gets back to the customer. Defaults to HOME_DELIVERY. */
 
@@ -268,6 +274,17 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   CANCELLED:        'Cancelled',
 
 };
+
+/** Human-friendly labels for PickupType — falls back to 'Unknown Pickup Type' for missing/unrecognized values. */
+export const PICKUP_TYPE_LABELS: Record<PickupType, string> = {
+  collect_from_home: 'Home Pickup',
+  drop_at_shop:      'Drop at Shop',
+  home_reception:    'Reception Pickup',
+};
+
+export function pickupTypeLabel(value?: string | null): string {
+  return (value && PICKUP_TYPE_LABELS[value as PickupType]) || 'Unknown Pickup Type';
+}
 
 
 
