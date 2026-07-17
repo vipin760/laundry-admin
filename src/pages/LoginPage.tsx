@@ -59,7 +59,7 @@ export const LoginPage: React.FC = () => {
           {/* Header */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-brand rounded-2xl mb-6 shadow-xl shadow-brand/20">
-               <img src={brandLogo} alt="Brand Logo" className="w-full h-full object-contain" />
+               <img src={brandLogo} alt="Brand Logo" className="w-full h-full object-contain rounded-lg" />
             </div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Laundrybrew CRM</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm font-medium">Sign in to manage your laundry empire</p>
