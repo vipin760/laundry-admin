@@ -251,6 +251,10 @@ export interface GetOrdersParams {
 
   sortDir?: SortDir;
 
+  /** Global search across order #, customer name, and registered mobile number. */
+
+  search?: string;
+
 }
 
 
@@ -336,6 +340,8 @@ export const ordersApi = {
     if (params?.sortField) query.append('sortField', params.sortField);
 
     if (params?.sortDir)   query.append('sortDir',   params.sortDir);
+
+    if (params?.search)    query.append('search',    params.search);
 
     const qs = query.toString();
 
