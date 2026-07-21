@@ -1472,6 +1472,8 @@ export const OrdersPage: React.FC = () => {
 
   const [search,      setSearch]      = useState('');
 
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   const [page,        setPage]        = useState(1);
 
   const [limit,       setLimit]       = useState(10);
@@ -1490,7 +1492,7 @@ export const OrdersPage: React.FC = () => {
 
   const load = () =>
 
-    fetchOrders({ page, limit, status: statusFilter || undefined, sortField, sortDir });
+    fetchOrders({ page, limit, status: statusFilter || undefined, sortField, sortDir, search: debouncedSearch || undefined });
 
 
 
@@ -1500,7 +1502,26 @@ export const OrdersPage: React.FC = () => {
 
 
 
-  useEffect(() => { load(); }, [page, limit, statusFilter, sortField, sortDir]);
+  // Debounce the search input so we don't hit the backend on every keystroke.
+  // Resets to page 1 in the same batch so filtering only triggers one fetch.
+
+  useEffect(() => {
+
+    const t = setTimeout(() => {
+
+      setDebouncedSearch(search.trim());
+
+      setPage(1);
+
+    }, 400);
+
+    return () => clearTimeout(t);
+
+  }, [search]);
+
+
+
+  useEffect(() => { load(); }, [page, limit, statusFilter, sortField, sortDir, debouncedSearch]);
 
 
 
@@ -1594,26 +1615,6 @@ export const OrdersPage: React.FC = () => {
 
 
 
-  const filtered = useMemo(
-
-    () => orders.filter((o) => {
-
-      if (!search) return true;
-
-      const q = search.toLowerCase();
-
-      return (o.orderNumber ?? o._id).toLowerCase().includes(q) ||
-
-             o.userId.toLowerCase().includes(q);
-
-    }),
-
-    [orders, search],
-
-  );
-
-
-
   const totalPages = Math.ceil(total / limit);
 
 
@@ -1650,7 +1651,7 @@ export const OrdersPage: React.FC = () => {
 
             value={search} onChange={(e) => setSearch(e.target.value)}
 
-            placeholder="Search by order # or user…"
+            placeholder="Search by order #, customer name, or mobile…"
 
             className="pl-10 pr-4 py-2.5 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/5 rounded-xl w-64 focus:ring-1 focus:ring-blue-500 focus:outline-none text-sm shadow-sm"
 
@@ -1748,7 +1749,7 @@ export const OrdersPage: React.FC = () => {
 
           </div>
 
-        ) : filtered.length === 0 ? (
+        ) : orders.length === 0 ? (
 
           <div className="flex flex-col items-center justify-center py-24 text-slate-400">
 
@@ -1796,7 +1797,7 @@ export const OrdersPage: React.FC = () => {
 
               <tbody className="divide-y divide-slate-50 dark:divide-white/5">
 
-                {filtered.map((order) => {
+                {orders.map((order) => {
 
                   const cats        = Array.from(new Set(order.items.map((i) => i.category ?? 'instant')));
 

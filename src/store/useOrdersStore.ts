@@ -7,7 +7,7 @@ interface OrdersState {
   total: number;
   isLoading: boolean;
   error: string | null;
-  fetchOrders: (params?: { page?: number; limit?: number; status?: OrderStatus | ''; sortField?: SortField; sortDir?: SortDir }) => Promise<void>;
+  fetchOrders: (params?: { page?: number; limit?: number; status?: OrderStatus | ''; sortField?: SortField; sortDir?: SortDir; search?: string }) => Promise<void>;
   updateStatus: (id: string, payload: UpdateStatusPayload) => Promise<void>;
 }
 
