@@ -173,6 +173,23 @@ export interface Order {
 
   calculatedAmount?: number;
 
+  /**
+   * Backend-computed, ordered billing breakdown — services + subtotal/
+   * discount/wallet/total rows. Absent on orders fetched before this field
+   * existed on the API. Never recompute these numbers in the admin app.
+   */
+  billingSummary?: {
+    lineItems: {
+      type: 'SERVICE' | 'SUBTOTAL' | 'DISCOUNT' | 'WALLET' | 'DELIVERY' | 'TAX' | 'ROUND_OFF' | 'TOTAL';
+      label: string;
+      amount: number;
+      quantity?: number;
+      unit?: string;
+      serviceId?: string;
+      unitPrice?: number;
+    }[];
+  };
+
   /** Findings / damage evidence photos taken at collection */
 
   damagePhotos?: OrderPhoto[];

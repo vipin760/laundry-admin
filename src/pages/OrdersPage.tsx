@@ -833,6 +833,49 @@ const OrderDetailPanel: React.FC<{
 
 
 
+          {/* Billing Breakdown — renders billingSummary.lineItems straight from the backend, no recalculation here */}
+
+          {!!order.billingSummary?.lineItems?.length && (
+
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/20 p-4">
+
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2 uppercase tracking-wide">Billing Breakdown</p>
+
+              <div className="space-y-1">
+
+                {order.billingSummary.lineItems.map((li, idx) => (
+
+                  <div
+                    key={idx}
+                    className={`flex justify-between text-xs ${li.type === 'TOTAL' ? 'font-black text-slate-900 dark:text-white pt-1 mt-1 border-t border-slate-200 dark:border-slate-500/20' : 'text-slate-600 dark:text-slate-300'}`}
+                  >
+
+                    <span>
+
+                      {li.label}
+
+                      {li.quantity != null && (
+                        <span className="text-slate-400 ml-1">
+                          ({li.quantity}{li.unit ? ` ${li.unit}` : ''}{li.unitPrice != null ? ` × ₹${li.unitPrice}` : ''})
+                        </span>
+                      )}
+
+                    </span>
+
+                    <span className={li.type === 'DISCOUNT' ? 'text-green-700' : ''}>₹{li.amount}</span>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          )}
+
+
+
           {/* Order photos — findings (damage evidence) + weighing (bill proof) */}
 
           <OrderPhotoManager
