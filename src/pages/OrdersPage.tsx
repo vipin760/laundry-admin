@@ -36,6 +36,12 @@ import { OrderPhotoManager } from '../components/OrderPhotoManager';
 
 import { ClothTypeCombobox } from '../components/ClothTypeCombobox';
 
+import { BillingBreakdown } from '../components/BillingBreakdown';
+
+import { InvoiceDownloadButton } from '../components/InvoiceDownloadButton';
+
+import { PriceAdjustmentHistory } from '../components/PriceAdjustmentHistory';
+
 
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -210,6 +216,8 @@ interface UpdateForm {
 
   overrideAmount: boolean;
 
+  overrideReason: string;
+
   pickupTime:  string;
 
   deliveryPartnerId: string;
@@ -265,6 +273,8 @@ const OrderDetailPanel: React.FC<{
     billAmount:  order.billAmount  != null ? String(order.billAmount): '',
 
     overrideAmount: false,
+
+    overrideReason: '',
 
     pickupTime:  order.pickupTime  ?? '',
 
@@ -386,6 +396,8 @@ const OrderDetailPanel: React.FC<{
         }
         if (form.overrideAmount && (!form.billAmount || parseFloat(form.billAmount) <= 0))
           return 'Override amount must be greater than 0.';
+        if (form.overrideAmount && !form.overrideReason.trim())
+          return 'Please provide a reason for the price override.';
       } else {
         if (!form.billAmount || parseFloat(form.billAmount) <= 0)
 
@@ -449,8 +461,10 @@ const OrderDetailPanel: React.FC<{
           }));
           // Send a manual bill only when overriding; otherwise the backend
           // uses the calculated amount from the breakdown.
-          if (form.overrideAmount && form.billAmount)
+          if (form.overrideAmount && form.billAmount) {
             payload.billAmount = parseFloat(form.billAmount);
+            payload.overrideReason = form.overrideReason.trim();
+          }
         } else {
           payload.billAmount = parseFloat(form.billAmount);
         }
@@ -697,6 +711,12 @@ const OrderDetailPanel: React.FC<{
                 : <span className="text-slate-400 text-xs italic">Pending itemization</span>
 
               }
+
+              <BillingBreakdown order={order} />
+
+              <InvoiceDownloadButton orderId={order._id} />
+
+              {order.isManuallyAdjusted && <PriceAdjustmentHistory orderId={order._id} />}
 
             </Row>
 
@@ -1076,6 +1096,22 @@ const OrderDetailPanel: React.FC<{
                         />
                         Override calculated amount
                       </label>
+                    )}
+
+                    {hasBreakdown && form.overrideAmount && (
+                      <div>
+                        <textarea
+                          value={form.overrideReason}
+                          onChange={(e) => set('overrideReason', e.target.value)}
+                          placeholder="Reason for override (required) — e.g. extra stains, re-wash, customer complaint credit"
+                          rows={2}
+                          maxLength={500}
+                          className="w-full px-3 py-2 text-xs rounded-lg border border-amber-300 bg-amber-50 dark:bg-white/5 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-amber-700 mt-0.5">
+                          This will be shown to the customer as "Admin Price Adjustment" and logged with your admin ID, IP, and timestamp.
+                        </p>
+                      </div>
                     )}
 
                     {hasBreakdown && !form.overrideAmount && (
