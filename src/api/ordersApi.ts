@@ -181,6 +181,17 @@ export interface Order {
   isManuallyAdjusted?: boolean;
   latestPricingSnapshotId?: string;
 
+  /** True when this order is a still-Pending (ORDER_PLACED) order whose scheduled pickup window has passed — eligible for admin cancellation. */
+  canAdminCancel?: boolean;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+
+  /** SLA countdown target for the current phase — server-computed, never recalculated client-side. Null once COMPLETED/CANCELLED. */
+  slaMilestone?: 'PICKUP' | 'DELIVERY' | 'COMPLETION' | null;
+  slaDeadline?: string | null;
+  slaStatus?: 'ON_TIME' | 'DUE_SOON' | 'OVERDUE' | null;
+
   clothTypeBreakdown?: {
     clothTypeId: string;
     clothTypeName: string;
@@ -188,6 +199,8 @@ export interface Order {
     rate: number;
     amount: number;
     serviceType?: 'instant' | 'scheduled';
+    /** Service name (e.g. "Wash & Fold", "Dry Cleaning") snapshotted at itemization time — immutable, unaffected by later catalog changes. */
+    serviceName?: string;
   }[];
 
   calculatedAmount?: number;
@@ -234,6 +247,9 @@ export interface UpdateStatusPayload {
    * PriceAdjustmentLog audit trail alongside the admin's id/ip/timestamp.
    */
   overrideReason?: string;
+
+  /** Optional reason recorded when an admin cancels an order — status = CANCELLED. */
+  cancellationReason?: string;
 
   pickupTime?: string;
 

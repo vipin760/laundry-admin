@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { timeSlotsApi } from '../api/timeSlotsApi';
+import { ServiceAvailabilityCard } from '../components/ServiceAvailabilityCard';
 import type { SlotStat, CreateSlotPayload, SlotType } from '../api/timeSlotsApi';
 import {
   Clock,
@@ -9,7 +10,6 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  Zap,
   X,
   Loader2,
   AlertTriangle,
@@ -286,21 +286,8 @@ export const TimeSlotsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Instant slot info card */}
-        <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4">
-          <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
-            <Zap size={18} className="text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
-              Instant Option (always available)
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              The <strong>Instant</strong> slot is automatically shown to users — delivery partner
-              reaches in ~15 minutes. You cannot edit or delete it here.
-            </p>
-          </div>
-        </div>
+        {/* Instant/Scheduled service availability */}
+        <ServiceAvailabilityCard />
 
         {/* Date selector for stats */}
         <div className="flex items-center gap-3">

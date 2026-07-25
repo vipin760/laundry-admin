@@ -16,7 +16,7 @@ import {
 
   Phone, User, Scale, Receipt, ShieldCheck, Filter,
 
-  ArrowUpDown, ArrowUp, ArrowDown, CreditCard, KeyRound, Printer,
+  ArrowUpDown, ArrowUp, ArrowDown, CreditCard, KeyRound, Printer, Ban,
 
 } from 'lucide-react';
 
@@ -37,6 +37,10 @@ import { OrderPhotoManager } from '../components/OrderPhotoManager';
 import { ClothTypeCombobox } from '../components/ClothTypeCombobox';
 
 import { BillingBreakdown } from '../components/BillingBreakdown';
+
+import { ItemizedBreakdown } from '../components/ItemizedBreakdown';
+
+import { SlaCountdown } from '../components/SlaCountdown';
 
 import { InvoiceDownloadButton } from '../components/InvoiceDownloadButton';
 
@@ -298,6 +302,14 @@ const OrderDetailPanel: React.FC<{
 
   const [err, setErr]       = useState<string | null>(null);
 
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const [cancelReason, setCancelReason] = useState('');
+
+  const [cancelling, setCancelling] = useState(false);
+
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
+
 
 
   // Delivery partners — loaded only when the dispatch step needs them
@@ -520,6 +532,35 @@ const OrderDetailPanel: React.FC<{
 
 
 
+  const handleCancel = async () => {
+
+    setCancelling(true); setCancelErr(null);
+
+    try {
+
+      await updateStatus(order._id, {
+        status: 'CANCELLED' as any,
+        cancellationReason: cancelReason.trim() || undefined,
+      });
+
+      setShowCancelConfirm(false);
+
+      onUpdated();
+
+    } catch (e: any) {
+
+      setCancelErr(e.message ?? 'Something went wrong');
+
+    } finally {
+
+      setCancelling(false);
+
+    }
+
+  };
+
+
+
   const pickupDateStr = order.pickupDate
 
     ? new Date(order.pickupDate).toLocaleDateString('en-IN', {
@@ -537,6 +578,8 @@ const OrderDetailPanel: React.FC<{
 
 
   return (
+
+    <>
 
     <div className="fixed inset-0 z-50 flex">
 
@@ -676,6 +719,12 @@ const OrderDetailPanel: React.FC<{
 
             </Row>
 
+            {order.slaMilestone && (
+              <Row icon={<Clock size={14} />} label="SLA">
+                <SlaCountdown order={order} />
+              </Row>
+            )}
+
             <Row icon={<Receipt size={14} />} label="Amount">
 
               {order.billAmount
@@ -711,6 +760,8 @@ const OrderDetailPanel: React.FC<{
                 : <span className="text-slate-400 text-xs italic">Pending itemization</span>
 
               }
+
+              <ItemizedBreakdown order={order} />
 
               <BillingBreakdown order={order} />
 
@@ -1304,6 +1355,22 @@ const OrderDetailPanel: React.FC<{
 
 
 
+          {/* ── Cancel expired Pending order (admin-only) ──────────────────── */}
+
+          {order.canAdminCancel && (
+
+            <button
+              onClick={() => setShowCancelConfirm(true)}
+              className="w-full py-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:border-red-500/30 text-red-600 font-bold text-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <Ban size={16}/>
+              Cancel Order (pickup window expired)
+            </button>
+
+          )}
+
+
+
           {order.status === 'COMPLETED' && (
 
             <div className="rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 p-4 text-center">
@@ -1337,6 +1404,82 @@ const OrderDetailPanel: React.FC<{
       </div>
 
     </div>
+
+
+
+    {showCancelConfirm && (
+
+      <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+
+        <div className="bg-white dark:bg-[#111] rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-white/10 overflow-hidden">
+
+          <div className="px-6 pt-6 pb-4">
+
+            <div className="flex items-center gap-3 mb-3">
+
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+
+                <Ban size={20} className="text-red-600 dark:text-red-400" />
+
+              </div>
+
+              <div>
+
+                <h3 className="font-black text-slate-900 dark:text-white text-base">Cancel this order?</h3>
+
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Order #{order.orderNumber ?? order._id.slice(-6).toUpperCase()} — this cannot be undone.
+                </p>
+
+              </div>
+
+            </div>
+
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Reason (optional)"
+              rows={2}
+              maxLength={500}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:ring-1 focus:ring-red-500 focus:outline-none"
+            />
+
+            {cancelErr && (
+              <p className="text-xs text-red-600 mt-2 flex items-center gap-1.5">
+                <AlertCircle size={13}/>{cancelErr}
+              </p>
+            )}
+
+          </div>
+
+          <div className="flex border-t border-slate-200 dark:border-white/10">
+
+            <button
+              onClick={() => { setShowCancelConfirm(false); setCancelErr(null); }}
+              disabled={cancelling}
+              className="flex-1 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50"
+            >
+              Keep Order
+            </button>
+
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="flex-1 py-3 text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {cancelling ? <Loader2 size={15} className="animate-spin"/> : <Ban size={15}/>}
+              {cancelling ? 'Cancelling…' : 'Cancel Order'}
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    )}
+
+    </>
 
   );
 
@@ -1894,6 +2037,16 @@ export const OrdersPage: React.FC = () => {
                           {hasInstant   && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200 w-fit">⚡ Instant</span>}
 
                           {hasScheduled && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200 w-fit">🕐 Scheduled</span>}
+
+                          {(order.slaStatus === 'OVERDUE' || order.slaStatus === 'DUE_SOON') && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border w-fit ${
+                              order.slaStatus === 'OVERDUE'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {order.slaStatus === 'OVERDUE' ? '⏰ Overdue' : '⏳ Due Soon'}
+                            </span>
+                          )}
 
                         </div>
 
