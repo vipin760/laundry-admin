@@ -162,6 +162,36 @@ export interface Order {
   /** Amount knocked off billAmount because this was the customer's first order. */
   firstOrderDiscountAmount?: number;
 
+  /** Coupon code applied at checkout, if any. */
+  couponCode?: string;
+
+  /** ₹ discount granted by the coupon, already subtracted from totalAmount. */
+  couponDiscountAmount?: number;
+
+  // ── Pricing engine breakdown (additive — absent on orders placed before
+  // this rolled out; render the legacy totalAmount/billAmount-only view when
+  // these are undefined) ──────────────────────────────────────────────────
+  taxAmount?: number;
+  deliveryFee?: number;
+  platformFee?: number;
+  convenienceFee?: number;
+  packagingFee?: number;
+  walletDeductionAmount?: number;
+  /** True once an admin has overridden the engine-calculated bill amount. */
+  isManuallyAdjusted?: boolean;
+  latestPricingSnapshotId?: string;
+
+  /** True when this order is a still-Pending (ORDER_PLACED) order whose scheduled pickup window has passed — eligible for admin cancellation. */
+  canAdminCancel?: boolean;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+
+  /** SLA countdown target for the current phase — server-computed, never recalculated client-side. Null once COMPLETED/CANCELLED. */
+  slaMilestone?: 'PICKUP' | 'DELIVERY' | 'COMPLETION' | null;
+  slaDeadline?: string | null;
+  slaStatus?: 'ON_TIME' | 'DUE_SOON' | 'OVERDUE' | null;
+
   clothTypeBreakdown?: {
     clothTypeId: string;
     clothTypeName: string;
@@ -169,6 +199,8 @@ export interface Order {
     rate: number;
     amount: number;
     serviceType?: 'instant' | 'scheduled';
+    /** Service name (e.g. "Wash & Fold", "Dry Cleaning") snapshotted at itemization time — immutable, unaffected by later catalog changes. */
+    serviceName?: string;
   }[];
 
   calculatedAmount?: number;
@@ -209,6 +241,16 @@ export interface UpdateStatusPayload {
     serviceType?: 'instant' | 'scheduled';
   }[];
 
+  /**
+   * Reason for a manual admin price override — required whenever billAmount
+   * differs from the engine-calculated amount. Recorded in the
+   * PriceAdjustmentLog audit trail alongside the admin's id/ip/timestamp.
+   */
+  overrideReason?: string;
+
+  /** Optional reason recorded when an admin cancels an order — status = CANCELLED. */
+  cancellationReason?: string;
+
   pickupTime?: string;
 
   /** Delivery partner assignment — set when advancing PROCESSING to OUT_FOR_DELIVERY */
@@ -224,6 +266,50 @@ export interface UpdateStatusPayload {
 }
 
 
+
+export interface PricingLineItem {
+  label: string;
+  amount: number;
+  kind: 'auto' | 'manual';
+  category?: string;
+}
+
+export interface PricingDiscount {
+  label: string;
+  amount: number;
+  source: string;
+}
+
+export interface PricingSnapshot {
+  _id: string;
+  reason: 'ORDER_ESTIMATE' | 'ITEMIZED' | 'ADMIN_OVERRIDE' | 'PAYMENT_CAPTURED';
+  lineItems: PricingLineItem[];
+  taxableSubtotal: number;
+  taxRatePercent: number;
+  taxAmount: number;
+  deliveryFee: number;
+  platformFee: number;
+  convenienceFee: number;
+  packagingFee: number;
+  discounts: PricingDiscount[];
+  walletDeductionAmount: number;
+  payableTotal: number;
+  isManualOverride: boolean;
+  overrideReason?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface PriceAdjustment {
+  _id: string;
+  previousAmount: number;
+  newAmount: number;
+  diffAmount: number;
+  reason: string;
+  adminId: string;
+  ipAddress?: string | null;
+  createdAt: string;
+}
 
 export interface GetOrdersResponse {
 
@@ -440,6 +526,16 @@ export const ordersApi = {
   },
 
 
+
+  /** GET /orders/:id/pricing-snapshots — full pricing computation history for an order. */
+  getPricingSnapshots: async (id: string): Promise<PricingSnapshot[]> => {
+    return apiClient(`/orders/${id}/pricing-snapshots`);
+  },
+
+  /** GET /orders/:id/price-adjustments — admin price-override audit trail for an order. */
+  getPriceAdjustments: async (id: string): Promise<PriceAdjustment[]> => {
+    return apiClient(`/orders/${id}/price-adjustments`);
+  },
 
   deleteOrderPhoto: async (
 

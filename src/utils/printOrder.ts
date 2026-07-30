@@ -11,6 +11,9 @@ const esc = (v: unknown): string =>
 const inr = (n: number | undefined | null): string =>
   n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
+const processingLabel = (v: unknown): string =>
+  v === 'scheduled' ? 'Scheduled' : v === 'instant' ? 'Instant' : '—';
+
 const dateStr = (d?: string | Date | null): string =>
   d
     ? new Date(d).toLocaleDateString('en-IN', {
@@ -41,14 +44,18 @@ export function printOrder(order: Order): void {
     )
     .join('');
 
-  // Itemized cloth breakdown (present once admin itemizes)
+  // Itemized cloth breakdown (present once admin itemizes). Service name and
+  // processing type come straight from the saved order — snapshotted once at
+  // itemization time — never recomputed from the current cloth-type catalog.
   const breakdown: any[] = (order as any).clothTypeBreakdown ?? [];
   const breakdownRows = breakdown
     .map(
       (b: any, idx: number) => `
       <tr>
         <td>${idx + 1}</td>
+        <td>${esc(b.serviceName ?? '-')}</td>
         <td>${esc(b.name ?? b.clothTypeName ?? b.clothTypeId ?? 'Item')}</td>
+        <td>${processingLabel(b.serviceType)}</td>
         <td class="num">${esc(b.quantity ?? '—')}</td>
         <td class="num">${b.rate != null ? inr(b.rate) : '—'}</td>
         <td class="num">${b.amount != null ? inr(b.amount) : '—'}</td>
@@ -128,7 +135,7 @@ export function printOrder(order: Order): void {
     ? `<h3>Itemized Breakdown</h3>
   <table>
     <thead>
-      <tr><th>#</th><th>Item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+      <tr><th>#</th><th>Service</th><th>Item</th><th>Processing</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
     </thead>
     <tbody>${breakdownRows}</tbody>
   </table>`
@@ -137,7 +144,12 @@ export function printOrder(order: Order): void {
   <div class="totals">
     ${order.weightKg != null ? `<div><span>Weight</span><span>${esc(order.weightKg)} kg</span></div>` : ''}
     ${order.itemCount != null ? `<div><span>Total pieces</span><span>${esc(order.itemCount)}</span></div>` : ''}
+    ${order.calculatedAmount != null ? `<div><span>Calculated amount</span><span>${inr(order.calculatedAmount)}</span></div>` : ''}
     <div><span>Estimated total</span><span>${inr(order.totalAmount)}</span></div>
+    ${order.couponDiscountAmount ? `<div><span>Coupon${order.couponCode ? ` (${esc(order.couponCode)})` : ''}</span><span>-${inr(order.couponDiscountAmount)}</span></div>` : ''}
+    ${order.firstOrderDiscountAmount ? `<div><span>First order discount</span><span>-${inr(order.firstOrderDiscountAmount)}</span></div>` : ''}
+    ${order.walletDeductionAmount ? `<div><span>Wallet deduction</span><span>-${inr(order.walletDeductionAmount)}</span></div>` : ''}
+    ${order.isManuallyAdjusted ? `<div><span>Admin price adjustment</span><span>${inr((order.billAmount ?? 0) - (order.calculatedAmount ?? order.billAmount ?? 0))}</span></div>` : ''}
     <div class="grand"><span>${order.billAmount != null ? 'Final Bill' : 'Amount Due'}</span><span>${inr(order.billAmount ?? order.totalAmount)}</span></div>
   </div>
 
