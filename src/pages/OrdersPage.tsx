@@ -1958,6 +1958,8 @@ export const OrdersPage: React.FC = () => {
 
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Type</th>
 
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">SLA</th>
+
                   <SortHeader label="Amount"  field="billAmount"  currentField={sortField} currentDir={sortDir} onSort={applySort} />
 
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Pickup</th>
@@ -2038,17 +2040,13 @@ export const OrdersPage: React.FC = () => {
 
                           {hasScheduled && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200 w-fit">🕐 Scheduled</span>}
 
-                          {(order.slaStatus === 'OVERDUE' || order.slaStatus === 'DUE_SOON') && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border w-fit ${
-                              order.slaStatus === 'OVERDUE'
-                                ? 'bg-red-50 text-red-700 border-red-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}>
-                              {order.slaStatus === 'OVERDUE' ? '⏰ Overdue' : '⏳ Due Soon'}
-                            </span>
-                          )}
-
                         </div>
+
+                      </td>
+
+                      <td className="px-5 py-4 max-w-55">
+
+                        <SlaCountdown order={order} />
 
                       </td>
 
