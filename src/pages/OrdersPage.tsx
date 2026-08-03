@@ -1497,7 +1497,7 @@ const Row: React.FC<{ icon: React.ReactNode; label: string; children: React.Reac
 
     <span className="text-slate-400 mt-0.5">{icon}</span>
 
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
 
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
 
