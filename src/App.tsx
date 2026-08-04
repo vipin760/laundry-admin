@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { OrderSirenProvider } from './context/OrderSirenContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
@@ -25,6 +26,7 @@ function App() {
     <Router>
       <ThemeProvider>
         <AuthProvider>
+          <OrderSirenProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
 
@@ -165,6 +167,7 @@ function App() {
 
             <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
+          </OrderSirenProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>

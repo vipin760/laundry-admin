@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 
-import { io } from 'socket.io-client';
-
 import { AdminLayout } from '../layouts/AdminLayout';
 
 import { useOrdersStore } from '../store/useOrdersStore';
 
-import { supportSocketUrl } from '../api/supportApi';
+import { useOrderSiren } from '../context/OrderSirenContext';
 
 import {
 
@@ -1704,77 +1702,15 @@ export const OrdersPage: React.FC = () => {
 
 
 
-  // ── WebSocket: new-order browser notifications for admins ─────────────────
+  // ── New-order siren: refresh the list on every order event. Merely having
+  // this page open does not stop the siren — only an explicit click on the
+  // banner/notification (or the 30s timeout) does, so it can't be missed.
+
+  const { lastEventAt } = useOrderSiren();
 
   useEffect(() => {
-
-    const token = localStorage.getItem('authToken');
-
-    if (!token) return;
-
-
-
-    // Request browser notification permission on first render
-
-    if ('Notification' in window && Notification.permission === 'default') {
-
-      Notification.requestPermission();
-
-    }
-
-
-
-    const socket = io(supportSocketUrl, {
-
-      auth: { token },
-
-      withCredentials: true,
-
-      // Polling first, then upgrade to websocket — see MessagesPage.tsx for
-      // why forcing 'websocket' first breaks behind tunnels/reverse proxies.
-      transports: ['polling', 'websocket'],
-
-    });
-
-
-
-    socket.on('order:new', (order: { orderNumber: string }) => {
-
-      // Refresh the orders list
-
-      loadRef.current();
-
-      // Browser notification when tab is not focused
-
-      if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-
-        new Notification('New order received! 🛒', {
-
-          body: `Order #${order.orderNumber} has just been placed.`,
-
-          icon: '/favicon.ico',
-
-        });
-
-      }
-
-    });
-
-
-
-    socket.on('order:updated', () => {
-
-      // Silently refresh to keep the list in sync after any status change
-
-      loadRef.current();
-
-    });
-
-
-
-    return () => { socket.disconnect(); };
-
-  }, []);
+    if (lastEventAt) loadRef.current();
+  }, [lastEventAt]);
 
 
 
