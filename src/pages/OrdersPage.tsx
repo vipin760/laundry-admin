@@ -16,6 +16,8 @@ import {
 
   ArrowUpDown, ArrowUp, ArrowDown, CreditCard, KeyRound, Printer, Ban,
 
+  ClipboardCheck,
+
 } from 'lucide-react';
 
 import { printOrder } from '../utils/printOrder';
@@ -308,6 +310,8 @@ const OrderDetailPanel: React.FC<{
 
   const [cancelErr, setCancelErr] = useState<string | null>(null);
 
+  const [showItemizationConfirm, setShowItemizationConfirm] = useState(false);
+
 
 
   // Delivery partners — loaded only when the dispatch step needs them
@@ -525,6 +529,38 @@ const OrderDetailPanel: React.FC<{
       setSaving(false);
 
     }
+
+  };
+
+
+
+  // Itemization commits pricing the customer gets billed, so gate it behind a
+  // review-everything popup instead of submitting straight from the form.
+  const handleAdvanceClick = () => {
+
+    if (!nextStatus) return;
+
+    const validationErr = validateForm();
+
+    if (validationErr) { setErr(validationErr); return; }
+
+    setErr(null);
+
+    if (nextStatus === 'ITEMIZED') {
+      setShowItemizationConfirm(true);
+    } else {
+      handleAdvance();
+    }
+
+  };
+
+
+
+  const handleConfirmItemization = () => {
+
+    setShowItemizationConfirm(false);
+
+    handleAdvance();
 
   };
 
@@ -1337,7 +1373,7 @@ const OrderDetailPanel: React.FC<{
 
 
 
-              <button onClick={handleAdvance} disabled={saving}
+              <button onClick={handleAdvanceClick} disabled={saving}
 
                 className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2">
 
@@ -1467,6 +1503,135 @@ const OrderDetailPanel: React.FC<{
             >
               {cancelling ? <Loader2 size={15} className="animate-spin"/> : <Ban size={15}/>}
               {cancelling ? 'Cancelling…' : 'Cancel Order'}
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    )}
+
+
+
+    {showItemizationConfirm && (
+
+      <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+
+        <div className="bg-white dark:bg-[#111] rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-white/10 overflow-hidden max-h-[90vh] flex flex-col">
+
+          <div className="px-6 pt-6 pb-4 overflow-y-auto">
+
+            <div className="flex items-center gap-3 mb-4">
+
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+
+                <ClipboardCheck size={20} className="text-blue-600 dark:text-blue-400" />
+
+              </div>
+
+              <div>
+
+                <h3 className="font-black text-slate-900 dark:text-white text-base">Confirm itemization</h3>
+
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Order #{order.orderNumber ?? order._id.slice(-6).toUpperCase()} — review before marking as Itemized.
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="space-y-2.5 text-sm">
+
+              {form.weightKg && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Weight</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{form.weightKg} kg</span>
+                </div>
+              )}
+
+              {form.itemCount && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Item count</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{form.itemCount}</span>
+                </div>
+              )}
+
+              {hasBreakdown && (
+                <div className="rounded-lg border border-slate-200 dark:border-white/10 divide-y divide-slate-100 dark:divide-white/5 overflow-hidden">
+                  {form.clothTypeBreakdown.map((item, i) => {
+                    const ct = clothTypes.find(c => c._id === item.clothTypeId);
+                    const rate = getEffectiveRate(ct, item.serviceType);
+                    const qty = parseFloat(item.quantity || '0');
+                    return (
+                      <div key={i} className="flex justify-between items-center px-3 py-2 text-xs">
+                        <span className="text-slate-700 dark:text-slate-200">
+                          {ct ? clothTypeLabel(ct) : 'Unknown item'} × {item.quantity || 0}
+                          {item.serviceType && <span className="text-slate-400"> ({item.serviceType})</span>}
+                        </span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-100">₹{(qty * rate).toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {hasBreakdown && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Calculated total</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">₹{calculatedTotal.toFixed(2)}</span>
+                </div>
+              )}
+
+              {form.overrideAmount && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Override reason</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400 text-right max-w-[60%]">{form.overrideReason}</span>
+                  </div>
+                </>
+              )}
+
+              <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-white/10">
+                <span className="text-slate-600 dark:text-slate-300 font-semibold">Final bill amount</span>
+                <span className="font-black text-slate-900 dark:text-white">
+                  ₹{(form.overrideAmount && form.billAmount
+                      ? parseFloat(form.billAmount)
+                      : hasBreakdown ? calculatedTotal : parseFloat(form.billAmount || '0')
+                    ).toFixed(2)}
+                </span>
+              </div>
+
+              {(form.pickupTime || order.pickupTime) && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Pickup time</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{form.pickupTime || order.pickupTime}</span>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+
+          <div className="flex border-t border-slate-200 dark:border-white/10">
+
+            <button
+              onClick={() => setShowItemizationConfirm(false)}
+              disabled={saving}
+              className="flex-1 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 disabled:opacity-50"
+            >
+              Go Back
+            </button>
+
+            <button
+              onClick={handleConfirmItemization}
+              disabled={saving}
+              className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? <Loader2 size={15} className="animate-spin"/> : <CheckCircle2 size={15}/>}
+              {saving ? 'Updating…' : 'Confirm & Proceed'}
             </button>
 
           </div>
