@@ -112,6 +112,11 @@ export interface Order {
   status: OrderStatus;
 
   paymentStatus: string;
+  /** Gateway transaction reference (Razorpay payment id) once paid. */
+  razorpayPaymentId?: string;
+  /** ₹ actually collected, and when it was confirmed server-side. Absent on orders paid before these were recorded. */
+  amountPaid?: number;
+  paidAt?: string;
 
   address?: string;
 
@@ -411,6 +416,15 @@ export function getNextStatus(order: Order): OrderStatus | undefined {
 
 
 
+/** What the backend would bill for a candidate service bill — see POST /orders/:id/pricing-preview. */
+export interface PricingPreview {
+  serviceBill: number;
+  deliveryFee: number;
+  taxAmount: number;
+  firstOrderDiscount: number;
+  finalPayable: number;
+}
+
 export const ordersApi = {
 
   getOrders: async (params?: GetOrdersParams): Promise<GetOrdersResponse> => {
@@ -458,6 +472,13 @@ export const ordersApi = {
   },
 
 
+
+  previewPricing: async (id: string, serviceBill?: number): Promise<PricingPreview> => {
+    return apiClient(`/orders/${id}/pricing-preview`, {
+      method: 'POST',
+      body: JSON.stringify(serviceBill != null ? { serviceBill } : {}),
+    });
+  },
 
   getClothTypes: async (): Promise<ClothType[]> => {
 

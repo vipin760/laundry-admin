@@ -145,12 +145,13 @@ export function printOrder(order: Order): void {
     ${order.weightKg != null ? `<div><span>Weight</span><span>${esc(order.weightKg)} kg</span></div>` : ''}
     ${order.itemCount != null ? `<div><span>Total pieces</span><span>${esc(order.itemCount)}</span></div>` : ''}
     ${order.calculatedAmount != null ? `<div><span>Calculated amount</span><span>${inr(order.calculatedAmount)}</span></div>` : ''}
-    <div><span>Estimated total</span><span>${inr(order.totalAmount)}</span></div>
+    <div><span>Estimated total (at booking)</span><span>${inr(order.totalAmount)}</span></div>
     ${order.couponDiscountAmount ? `<div><span>Coupon${order.couponCode ? ` (${esc(order.couponCode)})` : ''}</span><span>-${inr(order.couponDiscountAmount)}</span></div>` : ''}
     ${order.firstOrderDiscountAmount ? `<div><span>First order discount</span><span>-${inr(order.firstOrderDiscountAmount)}</span></div>` : ''}
     ${order.walletDeductionAmount ? `<div><span>Wallet deduction</span><span>-${inr(order.walletDeductionAmount)}</span></div>` : ''}
-    ${order.isManuallyAdjusted ? `<div><span>Admin price adjustment</span><span>${inr((order.billAmount ?? 0) - (order.calculatedAmount ?? order.billAmount ?? 0))}</span></div>` : ''}
-    <div class="grand"><span>${order.billAmount != null ? 'Final Bill' : 'Amount Due'}</span><span>${inr(order.billAmount ?? order.totalAmount)}</span></div>
+    ${order.isManuallyAdjusted ? `<div><span>Admin price adjustment</span><span>${inr(((order.originalBillAmount ?? order.billAmount ?? 0) - (order.deliveryFee ?? 0) - (order.platformFee ?? 0) - (order.convenienceFee ?? 0) - (order.packagingFee ?? 0) - (order.taxAmount ?? 0)) - (order.calculatedAmount ?? order.billAmount ?? 0))}</span></div>` : ''}
+    ${order.deliveryFee ? `<div><span>Pickup &amp; delivery fee</span><span>${inr(order.deliveryFee)}</span></div>` : ''}
+    <div class="grand"><span>${order.billAmount != null ? 'Final Payable' : 'Amount Due'}</span><span>${inr(order.billAmount ?? order.totalAmount)}</span></div>
   </div>
 
   <div class="foot">

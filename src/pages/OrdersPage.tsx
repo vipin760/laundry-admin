@@ -22,7 +22,7 @@ import {
 
 import { printOrder } from '../utils/printOrder';
 
-import type { Order, OrderStatus, DeliveryType, SortField, SortDir, UpdateStatusPayload } from '../api/ordersApi';
+import type { Order, OrderStatus, DeliveryType, SortField, SortDir, UpdateStatusPayload, PricingPreview } from '../api/ordersApi';
 
 import type { ClothType } from '../api/clothTypesApi';
 
@@ -37,6 +37,8 @@ import { OrderPhotoManager } from '../components/OrderPhotoManager';
 import { ClothTypeCombobox } from '../components/ClothTypeCombobox';
 
 import { BillingBreakdown } from '../components/BillingBreakdown';
+import { PaymentLinkPanel } from '../components/PaymentLinkPanel';
+import { PaymentSummary } from '../components/PaymentSummary';
 
 import { ItemizedBreakdown } from '../components/ItemizedBreakdown';
 
@@ -311,6 +313,7 @@ const OrderDetailPanel: React.FC<{
   const [cancelErr, setCancelErr] = useState<string | null>(null);
 
   const [showItemizationConfirm, setShowItemizationConfirm] = useState(false);
+  const [pricingPreview, setPricingPreview] = useState<PricingPreview | null>(null);
 
 
 
@@ -395,6 +398,21 @@ const OrderDetailPanel: React.FC<{
     }, 0),
     [form.clothTypeBreakdown, clothTypes],
   );
+
+  // The service bill this save would apply: the override when set, otherwise
+  // the calculated amount. The fee and payable are priced by the backend.
+  const serviceBillForPreview = form.overrideAmount && form.billAmount
+    ? parseFloat(form.billAmount)
+    : hasBreakdown ? calculatedTotal : parseFloat(form.billAmount || '0');
+
+  useEffect(() => {
+    if (!showItemizationConfirm) { setPricingPreview(null); return; }
+    let cancelled = false;
+    ordersApi.previewPricing(order._id, Number.isFinite(serviceBillForPreview) ? serviceBillForPreview : undefined)
+      .then((p) => { if (!cancelled) setPricingPreview(p); })
+      .catch(() => { if (!cancelled) setPricingPreview(null); });
+    return () => { cancelled = true; };
+  }, [showItemizationConfirm, order._id, serviceBillForPreview]);
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -798,6 +816,10 @@ const OrderDetailPanel: React.FC<{
               <ItemizedBreakdown order={order} />
 
               <BillingBreakdown order={order} />
+
+              {order.billAmount != null && <PaymentSummary order={order} />}
+
+              <PaymentLinkPanel key={order._id} order={order} onOrderChange={onOrderChange} />
 
               <InvoiceDownloadButton orderId={order._id} />
 
@@ -1595,14 +1617,34 @@ const OrderDetailPanel: React.FC<{
               )}
 
               <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-white/10">
-                <span className="text-slate-600 dark:text-slate-300 font-semibold">Final bill amount</span>
-                <span className="font-black text-slate-900 dark:text-white">
-                  ₹{(form.overrideAmount && form.billAmount
-                      ? parseFloat(form.billAmount)
-                      : hasBreakdown ? calculatedTotal : parseFloat(form.billAmount || '0')
-                    ).toFixed(2)}
-                </span>
+                <span className="text-slate-600 dark:text-slate-300 font-semibold">Service bill</span>
+                <span className="font-black text-slate-900 dark:text-white">₹{serviceBillForPreview.toFixed(2)}</span>
               </div>
+
+              {pricingPreview && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Pickup &amp; delivery fee</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">₹{pricingPreview.deliveryFee.toFixed(2)}</span>
+                  </div>
+                  {pricingPreview.taxAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">GST</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">₹{pricingPreview.taxAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {pricingPreview.firstOrderDiscount > 0 && (
+                    <div className="flex justify-between text-green-700">
+                      <span>First order reward</span>
+                      <span className="font-semibold">-₹{pricingPreview.firstOrderDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-white/10">
+                    <span className="text-slate-600 dark:text-slate-300 font-semibold">Final payable</span>
+                    <span className="font-black text-slate-900 dark:text-white">₹{pricingPreview.finalPayable.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
 
               {(form.pickupTime || order.pickupTime) && (
                 <div className="flex justify-between">

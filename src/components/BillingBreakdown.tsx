@@ -13,7 +13,7 @@ export const BillingBreakdown: React.FC<{ order: Order }> = ({ order }) => {
   const baseAmount = order.calculatedAmount ?? order.totalAmount;
 
   const fees: { label: string; amount: number }[] = [];
-  if (order.deliveryFee)    fees.push({ label: 'Delivery Fee', amount: order.deliveryFee });
+  if (order.deliveryFee)    fees.push({ label: 'Pickup & Delivery Fee', amount: order.deliveryFee });
   if (order.platformFee)    fees.push({ label: 'Platform Fee', amount: order.platformFee });
   if (order.convenienceFee) fees.push({ label: 'Convenience Fee', amount: order.convenienceFee });
   if (order.packagingFee)   fees.push({ label: 'Packaging Fee', amount: order.packagingFee });
@@ -36,9 +36,15 @@ export const BillingBreakdown: React.FC<{ order: Order }> = ({ order }) => {
   // Nothing beyond the plain total — the existing Amount row already shows this; don't duplicate.
   if (!hasExtras) return null;
 
+  // The override replaces the *service* bill only; fees/tax are derived from it.
+  // So the adjustment is (bill before any first-order reward) minus the fees and
+  // tax charged on top, minus the calculated service amount.
+  const feesTotal = fees.reduce((sum, f) => sum + f.amount, 0);
   const adjustmentDiff =
     order.isManuallyAdjusted && order.calculatedAmount != null
-      ? Math.round((order.billAmount - order.calculatedAmount) * 100) / 100
+      ? Math.round(
+          ((order.originalBillAmount ?? order.billAmount) - feesTotal - (order.taxAmount ?? 0) - order.calculatedAmount) * 100,
+        ) / 100
       : 0;
 
   return (
