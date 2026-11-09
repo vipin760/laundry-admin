@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import { useClothTypesStore } from '../store/useClothTypesStore';
 import type { ClothType, ClothTypeCategory, ClothTypeSubcategory } from '../api/clothTypesApi';
 import { CATEGORY_LABELS } from '../constants/clothTypeCategories';
@@ -90,7 +91,7 @@ function RateCell({ label, rate, discountRate }: { label: string; rate: number; 
 }
 
 export const ClothTypesPage: React.FC = () => {
-  const { clothTypes, isLoading, error, fetchClothTypes, createClothType, updateClothType, deleteClothType } = useClothTypesStore();
+  const { clothTypes, isLoading, error, fetchClothTypes, createClothType, updateClothType, deleteClothType, page, limit, total, totalPages } = useClothTypesStore();
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -104,13 +105,17 @@ export const ClothTypesPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const firstRun = useRef(true);
+  // Initial load + debounced server-side search (always back to page 1).
   useEffect(() => {
-    fetchClothTypes();
-  }, [fetchClothTypes]);
+    const delay = firstRun.current ? 0 : 350;
+    firstRun.current = false;
+    const t = setTimeout(() => { void fetchClothTypes({ page: 1, search: searchTerm }); }, delay);
+    return () => clearTimeout(t);
+  }, [searchTerm, fetchClothTypes]);
 
-  const filteredClothTypes = clothTypes.filter(ct =>
-    ct.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const goTo = (p: number) => { void fetchClothTypes({ page: Math.min(Math.max(1, p), totalPages) }); };
+  const filteredClothTypes = clothTypes; // already filtered + paged by the server
 
   const isSmartPass = formData.category === 'membership' && formData.subcategory === 'smartPass';
 
@@ -632,6 +637,11 @@ export const ClothTypesPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {!isLoading && (
+          <TableFooter page={page} totalPages={totalPages} total={total} limit={limit} itemLabel="cloth types"
+            onPage={goTo} onLimit={(n) => void fetchClothTypes({ page: 1, limit: n })} />
+        )}
       </div>
 
       {/* Create Modal */}

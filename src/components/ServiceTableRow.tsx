@@ -1,7 +1,7 @@
 import React from 'react';
 import type { LaundryService } from '../api/servicesApi';
 import { Badge } from './Badge';
-import { Edit2, Trash2, RotateCcw, Clock, Star } from 'lucide-react';
+import { Edit2, PowerOff, RotateCcw, Clock, Star } from 'lucide-react';
 
 interface ServiceTableRowProps {
   service: LaundryService;
@@ -121,9 +121,10 @@ export const ServiceTableRow: React.FC<ServiceTableRowProps> = ({ service, onEdi
             <button
               onClick={() => onDeactivateClick(service)}
               title="Deactivate (hide from customer app)"
+              aria-label="Deactivate service"
               className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-100 dark:hover:border-red-500/20"
             >
-              <Trash2 size={16} />
+              <PowerOff size={16} />
             </button>
           ) : (
             <button

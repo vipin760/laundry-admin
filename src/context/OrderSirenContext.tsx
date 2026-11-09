@@ -21,6 +21,9 @@ interface OrderSirenContextType {
   // Bumped on every order:new/order:updated event so pages can refresh
   // their own data without owning a socket connection themselves.
   lastEventAt: number;
+  // Set when a payment is confirmed or a delivery-time QR changes state, so
+  // the orders page / QR modal can refetch that order instantly.
+  lastPaymentEvent: { orderId: string; kind: 'paid' | 'qr'; at: number } | null;
 }
 
 const OrderSirenContext = createContext<OrderSirenContextType | undefined>(undefined);
@@ -32,6 +35,7 @@ export const OrderSirenProvider: React.FC<{ children: ReactNode }> = ({ children
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [isSirenPlaying, setIsSirenPlaying] = useState(false);
   const [lastEventAt, setLastEventAt] = useState(0);
+  const [lastPaymentEvent, setLastPaymentEvent] = useState<OrderSirenContextType['lastPaymentEvent']>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,6 +115,18 @@ export const OrderSirenProvider: React.FC<{ children: ReactNode }> = ({ children
       setLastEventAt(Date.now());
     });
 
+    // Payment verified server-side (webhook / reconciliation / verify).
+    socket.on('order:payment_updated', (p: { _id: string }) => {
+      setLastPaymentEvent({ orderId: p._id, kind: 'paid', at: Date.now() });
+      setLastEventAt(Date.now());
+    });
+
+    // Delivery-time QR generated / expired / closed / paid.
+    socket.on('order:payment_qr_updated', (p: { orderId: string }) => {
+      setLastPaymentEvent({ orderId: p.orderId, kind: 'qr', at: Date.now() });
+      setLastEventAt(Date.now());
+    });
+
     return () => { socket.disconnect(); };
   }, [isAuthenticated, navigate, stopSiren]);
 
@@ -125,7 +141,7 @@ export const OrderSirenProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   return (
-    <OrderSirenContext.Provider value={{ pendingOrders, isSirenPlaying, stopSiren, lastEventAt }}>
+    <OrderSirenContext.Provider value={{ pendingOrders, isSirenPlaying, stopSiren, lastEventAt, lastPaymentEvent }}>
       {children}
       <AnimatePresence>
         {isSirenPlaying && (

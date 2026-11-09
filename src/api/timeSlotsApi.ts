@@ -36,7 +36,21 @@ export interface CreateSlotPayload {
   sortOrder?: number;
 }
 
+export interface SlotStatsPage {
+  items: SlotStat[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  /** Days that have at least one active slot (across ALL slots, not just this page). */
+  coveredDays: string[];
+}
+
 export const timeSlotsApi = {
+  /** One server-side page of slots + order counts for the date. */
+  statsPage: (date: string, page: number, limit: number): Promise<SlotStatsPage> =>
+    apiClient(`/standard-time-slots/stats?date=${date}&page=${page}&limit=${limit}`),
+
   list: (): Promise<StandardTimeSlot[]> =>
     apiClient('/standard-time-slots'),
 

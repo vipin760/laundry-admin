@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 
 import { useOrdersStore } from '../store/useOrdersStore';
 
@@ -8,13 +9,13 @@ import { useOrderSiren } from '../context/OrderSirenContext';
 
 import {
 
-  Search, Loader2, PackageX, ChevronLeft, ChevronRight,
+  Search, Loader2, PackageX,
 
   X, Truck, Package, CheckCircle2, Clock, AlertCircle,
 
   Phone, User, Scale, Receipt, ShieldCheck, Filter,
 
-  ArrowUpDown, ArrowUp, ArrowDown, CreditCard, KeyRound, Printer, Ban,
+  ArrowUpDown, ArrowUp, ArrowDown, KeyRound, Printer, Ban,
 
   ClipboardCheck,
 
@@ -45,6 +46,8 @@ import { SlaCountdown } from '../components/SlaCountdown';
 import { InvoiceDownloadButton } from '../components/InvoiceDownloadButton';
 
 import { PriceAdjustmentHistory } from '../components/PriceAdjustmentHistory';
+
+import { OrderPaymentCard, PaymentBadge } from '../components/OrderPaymentCard';
 
 
 
@@ -430,6 +433,7 @@ const OrderDetailPanel: React.FC<{
 
     if (nextStatus === 'COMPLETED') {
 
+      if (order.paymentStatus !== 'COMPLETED') return 'Payment has not been completed yet. The delivery OTP is sent to the customer only after they pay.';
       if (!form.otp.trim()) return 'Please enter the 4-digit OTP to confirm delivery.';
 
       if (form.otp.trim().length !== 4) return 'OTP must be exactly 4 digits.';
@@ -679,21 +683,7 @@ const OrderDetailPanel: React.FC<{
 
             <StatusBadge status={order.status} />
 
-            {paymentPending
-
-              ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-red-50 text-red-600 border-red-200">
-
-                  <CreditCard size={11}/> Payment Pending
-
-                </span>
-
-              : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-green-50 text-green-700 border-green-200">
-
-                  <CreditCard size={11}/> Paid
-
-                </span>
-
-            }
+            <PaymentBadge order={order} />
 
             {!!order.firstOrderDiscountAmount && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-pink-50 text-pink-700 border-pink-200">
@@ -706,6 +696,10 @@ const OrderDetailPanel: React.FC<{
           </div>
 
 
+
+          {/* Payment — state-aware QR generation, details and history */}
+
+          <OrderPaymentCard order={order} onChanged={onUpdated} />
 
           {/* Order info */}
 
@@ -1338,6 +1332,12 @@ const OrderDetailPanel: React.FC<{
               {nextStatus === 'COMPLETED' && (
 
                 <div className="space-y-2">
+                  {paymentPending && (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 font-semibold flex items-center gap-1.5">
+                      <Clock size={13}/> Waiting for customer payment — the OTP is sent only after payment is verified.
+                    </div>
+                  )}
+
 
                   <p className="text-xs text-slate-500 flex items-center gap-1.5">
 
@@ -1871,11 +1871,25 @@ export const OrdersPage: React.FC = () => {
   // this page open does not stop the siren — only an explicit click on the
   // banner/notification (or the 30s timeout) does, so it can't be missed.
 
-  const { lastEventAt } = useOrderSiren();
+  const { lastEventAt, lastPaymentEvent } = useOrderSiren();
 
   useEffect(() => {
     if (lastEventAt) loadRef.current();
   }, [lastEventAt]);
+
+  // A payment was confirmed (or a QR changed) — refresh the list AND the open
+  // detail panel so "Paid" appears with no manual reload.
+  useEffect(() => {
+    if (!lastPaymentEvent) return;
+    let cancelled = false;
+    (async () => {
+      await loadRef.current();
+      if (cancelled) return;
+      const fresh = useOrdersStore.getState().orders.find((o) => o._id === lastPaymentEvent.orderId);
+      if (fresh) setSelected((cur) => (cur && cur._id === fresh._id ? { ...fresh } : cur));
+    })();
+    return () => { cancelled = true; };
+  }, [lastPaymentEvent]);
 
 
 
@@ -1981,27 +1995,7 @@ export const OrdersPage: React.FC = () => {
 
 
 
-        <div className="ml-auto flex items-center gap-2">
-
-          <span className="text-xs text-slate-400">Rows:</span>
-
-          <select
-
-            value={limit}
-
-            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-
-            className="text-xs px-2 py-1.5 border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1A1A1A] text-slate-700 dark:text-slate-200 focus:outline-none"
-
-          >
-
-            {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
-
-          </select>
-
-        </div>
-
-      </div>
+</div>
 
 
 
@@ -2189,9 +2183,20 @@ export const OrdersPage: React.FC = () => {
 
                         {isPaid
 
-                          ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-green-50 text-green-700 border border-green-200">✓ Paid</span>
+                          ? <>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-green-50 text-green-700 border border-green-200">✓ Paid</span>
+                              {order.paymentMethod && <div className="text-[10px] text-slate-400 mt-0.5">{order.paymentMethod}</div>}
+                            </>
 
-                          : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-red-50 text-red-600 border border-red-200">Unpaid</span>}
+                          : order.paymentQrStatus === 'QR_GENERATED'
+
+                            ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200">⏳ Awaiting (QR)</span>
+
+                            : order.paymentQrStatus === 'EXPIRED'
+
+                              ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-red-50 text-red-600 border border-red-200">QR expired</span>
+
+                              : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-red-50 text-red-600 border border-red-200">Unpaid</span>}
 
                       </td>
 
@@ -2237,82 +2242,12 @@ export const OrdersPage: React.FC = () => {
 
 
         {/* Pagination */}
-
-        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 dark:border-white/5">
-
-          <p className="text-xs text-slate-400">
-
-            Page {page} of {totalPages || 1} · {total} total
-
-          </p>
-
-          <div className="flex items-center gap-1">
-
-            <button onClick={() => setPage(1)} disabled={page === 1}
-
-              className="px-2 py-1.5 text-xs rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors font-semibold">
-
-              «
-
-            </button>
-
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-
-              className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
-
-              <ChevronLeft size={16}/>
-
-            </button>
-
-            {/* Page numbers */}
-
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-
-              const start = Math.max(1, Math.min(page - 2, totalPages - 4));
-
-              const p = start + i;
-
-              if (p > totalPages) return null;
-
-              return (
-
-                <button key={p} onClick={() => setPage(p)}
-
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-
-                    p === page ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-600'
-
-                  }`}>
-
-                  {p}
-
-                </button>
-
-              );
-
-            })}
-
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-
-              className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
-
-              <ChevronRight size={16}/>
-
-            </button>
-
-            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
-
-              className="px-2 py-1.5 text-xs rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors font-semibold">
-
-              »
-
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
+        <TableFooter page={page} totalPages={totalPages || 1} total={total} limit={limit} itemLabel="orders"
+          disabled={isLoading}
+          onPage={(p) => setPage(Math.min(Math.max(1, p), totalPages || 1))}
+          onLimit={(n) => { setLimit(n); setPage(1); }}
+          limitOptions={PAGE_SIZES} />
+</div>
 
 
 

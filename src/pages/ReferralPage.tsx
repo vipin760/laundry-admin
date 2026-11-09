@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import {
   Users,
   Clock,
@@ -40,6 +41,7 @@ export const ReferralPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -53,6 +55,7 @@ export const ReferralPage: React.FC = () => {
       setSummary(dash);
       setRows(list.data);
       setTotalPages(list.totalPages || 1);
+      setTotal(list.total || 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -259,27 +262,9 @@ export const ReferralPage: React.FC = () => {
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex justify-center gap-2">
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="px-3 py-1 border rounded disabled:opacity-40"
-          >
-            Prev
-          </button>
-          <span className="px-3 py-1 text-sm">
-            {page} / {totalPages}
-          </span>
-          <button
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1 border rounded disabled:opacity-40"
-          >
-            Next
-          </button>
+          {!loading && (
+            <TableFooter page={page} totalPages={totalPages} total={total} limit={20} itemLabel="referrals" onPage={setPage} />
+          )}
         </div>
       </div>
 

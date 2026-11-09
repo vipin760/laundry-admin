@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, Plus, Save, X, Loader2, Power, PowerOff, CalendarDays, Search, Navigation, Map, LocateFixed } from 'lucide-react';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { usersApi } from '../api/usersApi';
 import type { GeocodeCandidate } from '../api/usersApi';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import {
   defaultWorkingSchedule,
 } from '../api/locationsApi';
@@ -409,6 +410,11 @@ export const LocationsPage: React.FC = () => {
   const {
     items,
     total,
+    page,
+    limit,
+    totalPages,
+    cities: cityOptions,
+    fetchCities,
     isLoading,
     error,
     closuresByLocation,
@@ -430,9 +436,18 @@ export const LocationsPage: React.FC = () => {
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [capacityStats, setCapacityStats] = useState<CapacityStats | null>(null);
 
+  useEffect(() => { void fetchCities(); }, [fetchCities]);
+
+  // Server-side search + city filter (debounced; always back to page 1).
+  const firstRun = useRef(true);
   useEffect(() => {
-    void fetchLocations({ includeInactive: true, page: 1, limit: 50 });
-  }, [fetchLocations]);
+    const delay = firstRun.current ? 0 : 350;
+    firstRun.current = false;
+    const t = setTimeout(() => { void fetchLocations({ page: 1, search: search.trim(), city: cityFilter }); }, delay);
+    return () => clearTimeout(t);
+  }, [search, cityFilter, fetchLocations]);
+
+  const goTo = (p: number) => { void fetchLocations({ page: Math.min(Math.max(1, p), totalPages) }); };
 
   useEffect(() => {
     if (selected) {
@@ -445,18 +460,7 @@ export const LocationsPage: React.FC = () => {
     }
   }, [selected, fetchClosures]);
 
-  const filteredItems = useMemo(() => {
-    const key = search.trim().toLowerCase();
-    const city = cityFilter.trim().toLowerCase();
-    return items.filter((item) => {
-      const matchesSearch =
-        !key ||
-        item.shopName.toLowerCase().includes(key) ||
-        item.fullAddress.toLowerCase().includes(key);
-      const matchesCity = !city || item.city.toLowerCase().includes(city);
-      return matchesSearch && matchesCity;
-    });
-  }, [items, search, cityFilter]);
+  const filteredItems = items; // already filtered + paged by the server
 
   const selectedClosures = selected ? closuresByLocation[selected._id] || [] : [];
 
@@ -503,12 +507,6 @@ export const LocationsPage: React.FC = () => {
     await addClosure(selected._id, closureForm);
     setClosureForm({ startDate: '', endDate: '', reason: '', note: '' });
   }
-
-  // Unique city list for dropdown filter
-  const cityOptions = useMemo(() => {
-    const cities = Array.from(new Set(items.map((l) => l.city).filter(Boolean)));
-    return cities.sort();
-  }, [items]);
 
   return (
     <AdminLayout>
@@ -649,9 +647,8 @@ export const LocationsPage: React.FC = () => {
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-3 text-xs font-semibold text-slate-500 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/3">
-            Total Locations: <span className="text-slate-700 dark:text-slate-300">{total}</span>
-          </div>
+          <TableFooter page={page} totalPages={totalPages} total={total} limit={limit} itemLabel="locations"
+            disabled={isLoading} onPage={goTo} onLimit={(n) => void fetchLocations({ page: 1, limit: n })} />
         </section>
 
         {/* ── Right panel ── */}

@@ -113,6 +113,25 @@ export interface Order {
 
   paymentStatus: string;
 
+  // ── Payment completion details (additive — absent on orders paid before these existed) ──
+
+  /** How the customer paid, e.g. 'UPI'. */
+  paymentMethod?: string;
+
+  /** Bank/UPI reference (RRN), or the gateway payment id as a fallback. */
+  paymentTransactionId?: string;
+
+  /** When the verified payment was recorded. */
+  paymentCompletedAt?: string;
+
+  /** 'ONLINE' = in-app checkout, 'QR' = delivery-time UPI QR. */
+  paymentChannel?: 'ONLINE' | 'QR';
+
+  /** Latest delivery-time QR state: QR_GENERATED | EXPIRED | CLOSED | PAID. Display hint only — paymentStatus is the source of truth. */
+  paymentQrStatus?: 'QR_GENERATED' | 'EXPIRED' | 'CLOSED' | 'PAID';
+
+  paymentQrExpiresAt?: string;
+
   address?: string;
 
   /** How the dirty laundry was collected from the customer. Absent on orders placed before this field existed. */

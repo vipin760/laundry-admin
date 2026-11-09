@@ -68,7 +68,22 @@ export interface UpdateClothTypeDto {
   validityDays?: number;
 }
 
+export interface ClothTypesPage {
+  items: ClothType[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const clothTypesApi = {
+  /** One server-side page (never loads the whole catalogue). */
+  getClothTypesPage: async (params: { page: number; limit: number; search?: string }): Promise<ClothTypesPage> => {
+    const q = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+    if (params.search?.trim()) q.set('search', params.search.trim());
+    return apiClient(`/cloth-types?${q.toString()}`);
+  },
+
   getClothTypes: async (): Promise<ClothType[]> => {
     return apiClient('/cloth-types');
   },

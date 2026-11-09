@@ -5,22 +5,36 @@ interface ClothTypesState {
   clothTypes: ClothType[];
   isLoading: boolean;
   error: string | null;
-  fetchClothTypes: () => Promise<void>;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  search: string;
+  fetchClothTypes: (opts?: { page?: number; limit?: number; search?: string; silent?: boolean }) => Promise<void>;
   createClothType: (dto: CreateClothTypeDto) => Promise<void>;
   updateClothType: (id: string, dto: UpdateClothTypeDto) => Promise<void>;
   deleteClothType: (id: string) => Promise<void>;
 }
 
-export const useClothTypesStore = create<ClothTypesState>((set) => ({
+export const useClothTypesStore = create<ClothTypesState>((set, get) => ({
   clothTypes: [],
   isLoading: false,
   error: null,
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 1,
+  search: '',
 
-  fetchClothTypes: async () => {
-    set({ isLoading: true, error: null });
+  fetchClothTypes: async (opts = {}) => {
+    const page = opts.page ?? get().page;
+    const limit = opts.limit ?? get().limit;
+    const search = opts.search ?? get().search;
+    if (!opts.silent) set({ isLoading: true });
+    set({ error: null });
     try {
-      const clothTypes = await clothTypesApi.getClothTypes();
-      set({ clothTypes, isLoading: false });
+      const res = await clothTypesApi.getClothTypesPage({ page, limit, search });
+      set({ clothTypes: res.items, page: res.page, limit: res.limit, total: res.total, totalPages: res.totalPages, search, isLoading: false });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to fetch cloth types', isLoading: false });
     }
@@ -29,8 +43,9 @@ export const useClothTypesStore = create<ClothTypesState>((set) => ({
   createClothType: async (dto: CreateClothTypeDto) => {
     set({ isLoading: true, error: null });
     try {
-      const newClothType = await clothTypesApi.createClothType(dto);
-      set((state) => ({ clothTypes: [...state.clothTypes, newClothType], isLoading: false }));
+      await clothTypesApi.createClothType(dto);
+      await get().fetchClothTypes({ silent: true });
+      set({ isLoading: false });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to create cloth type', isLoading: false });
       throw error;
@@ -55,10 +70,8 @@ export const useClothTypesStore = create<ClothTypesState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await clothTypesApi.deleteClothType(id);
-      set((state) => ({
-        clothTypes: state.clothTypes.filter((ct) => ct._id !== id),
-        isLoading: false,
-      }));
+      await get().fetchClothTypes({ silent: true });
+      set({ isLoading: false });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to delete cloth type', isLoading: false });
       throw error;

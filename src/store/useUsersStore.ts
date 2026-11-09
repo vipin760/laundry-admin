@@ -1,11 +1,19 @@
 import { create } from 'zustand';
 import { usersApi } from '../api/usersApi';
-import type { User, UserAddress, UserAddressPayload, UserRole } from '../api/usersApi';
+import type { User, UsersPage, UserAddress, UserAddressPayload, UserRole } from '../api/usersApi';
 
 interface UsersState {
   users: User[];
   isLoading: boolean;
   error: string | null;
+
+  // Server-side pagination + counts
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  search: string;
+  stats: UsersPage['stats'];
 
   // Address management
   addressModalUserId: string | null;
@@ -18,7 +26,7 @@ interface UsersState {
   editUserSaving: boolean;
   editUserError: string | null;
 
-  fetchUsers: () => Promise<void>;
+  fetchUsers: (opts?: { page?: number; limit?: number; search?: string; silent?: boolean }) => Promise<void>;
   blockUser: (id: string) => Promise<void>;
   unblockUser: (id: string) => Promise<void>;
   changeRole: (id: string, role: UserRole) => Promise<void>;
@@ -40,6 +48,13 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   isLoading: false,
   error: null,
 
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 1,
+  search: '',
+  stats: { totalUsers: 0, activeUsers: 0, deliveryPartners: 0 },
+
   addressModalUserId: null,
   addresses: [],
   addressesLoading: false,
@@ -49,13 +64,26 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   editUserSaving: false,
   editUserError: null,
 
-  fetchUsers: async () => {
-    set({ isLoading: true, error: null });
+  fetchUsers: async (opts = {}) => {
+    const page = opts.page ?? get().page;
+    const limit = opts.limit ?? get().limit;
+    const search = opts.search ?? get().search;
+    if (!opts.silent) set({ isLoading: true });
+    set({ error: null });
     try {
-      const users = await usersApi.getUsers();
-      set({ users, isLoading: false });
+      const res = await usersApi.getUsersPage({ page, limit, search });
+      set({
+        users: res.items,
+        page: res.page,
+        limit: res.limit,
+        total: res.total,
+        totalPages: res.totalPages,
+        search,
+        stats: res.stats,
+        isLoading: false,
+      });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to fetch users', isLoading: false });
+      set({ error: err.message || err.response?.data?.message || 'Failed to fetch users', isLoading: false });
     }
   },
 
@@ -63,6 +91,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     try {
       const updatedUser = await usersApi.blockUser(id);
       set({ users: get().users.map((u) => (u._id === id ? updatedUser : u)) });
+      void get().fetchUsers({ silent: true }); // keep header counts accurate
     } catch (err: any) {
       set({ error: err.response?.data?.message || 'Failed to block user' });
     }
@@ -72,6 +101,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     try {
       const updatedUser = await usersApi.unblockUser(id);
       set({ users: get().users.map((u) => (u._id === id ? updatedUser : u)) });
+      void get().fetchUsers({ silent: true }); // keep header counts accurate
     } catch (err: any) {
       set({ error: err.response?.data?.message || 'Failed to unblock user' });
     }
@@ -81,6 +111,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     try {
       const updatedUser = await usersApi.changeRole(id, role);
       set({ users: get().users.map((u) => (u._id === id ? updatedUser : u)) });
+      void get().fetchUsers({ silent: true }); // keep header counts accurate
     } catch (err: any) {
       set({ error: err.response?.data?.message || 'Failed to change role' });
     }
