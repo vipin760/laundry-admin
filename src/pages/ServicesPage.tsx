@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import { useServicesStore } from '../store/useServicesStore';
 import { useDebounce } from '../hooks/useDebounce';
 import { ServiceTableRow } from '../components/ServiceTableRow';
-import { Pagination } from '../components/Pagination';
 import type { LaundryService } from '../api/servicesApi';
 import { servicesApi } from '../api/servicesApi';
 import { Plus, Search, X, Loader2, PackageOpen, ImagePlus, Trash2 } from 'lucide-react';
@@ -16,7 +16,7 @@ export const ServicesPage: React.FC = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const [page, setPage] = useState(1);
-  const limit = 6;
+  const [limit, setLimit] = useState(10);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -333,19 +333,11 @@ export const ServicesPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {!isLoading && (
+          <TableFooter page={page} totalPages={totalPages} total={total} limit={limit} itemLabel="services"
+            onPage={setPage} onLimit={(n) => { setLimit(n); setPage(1); }} />
+        )}
       </div>
-
-      {!isLoading && services.length > 0 && (
-        <div className="mt-8 flex justify-center">
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            totalItems={total}
-            itemsPerPage={limit}
-            onPageChange={setPage}
-          />
-        </div>
-      )}
 
       {/* Add Modal */}
       <AnimatePresence>

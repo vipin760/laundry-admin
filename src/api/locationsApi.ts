@@ -127,6 +127,10 @@ export const locationsApi = {
     return apiClient(`/locations${qs ? `?${qs}` : ''}`);
   },
 
+  async getCities(): Promise<string[]> {
+    return apiClient('/locations/cities');
+  },
+
   async createLocation(payload: CreateOrUpdateLocationPayload): Promise<LocationEntity> {
     return apiClient('/locations', {
       method: 'POST',

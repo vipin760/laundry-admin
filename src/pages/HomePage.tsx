@@ -157,28 +157,28 @@ export const HomePage: React.FC = () => {
 
   return (
     <AdminLayout>
-      {/* Page Title */}
-      <div className="mb-10">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Live overview of customers, orders and revenue</p>
-      </div>
-
-      {/* Quick nav */}
-      <div className="flex items-center justify-end gap-3 mb-8">
-        <button
-          onClick={() => navigate('/users')}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-white/5 text-slate-600 dark:text-slate-200 text-sm font-bold border border-slate-200 dark:border-white/5 rounded-lg hover:bg-slate-50 transition-all"
-        >
-          <Users size={16} />
-          <span>Customers</span>
-        </button>
-        <button
-          onClick={() => navigate('/orders')}
-          className="flex items-center gap-2 px-4 py-2 bg-brand text-white text-sm font-bold rounded-lg hover:bg-brand-hover transition-all shadow-lg shadow-brand/20"
-        >
-          <PackageOpen size={16} />
-          <span>Orders</span>
-        </button>
+      {/* Page Title + quick nav (same row; wraps on small screens) */}
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-x-4 gap-y-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+          <p className="text-slate-500 text-sm mt-1">Live overview of customers, orders and revenue</p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => navigate('/users')}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-white/5 text-slate-600 dark:text-slate-200 text-sm font-bold border border-slate-200 dark:border-white/5 rounded-lg hover:bg-slate-50 transition-all"
+          >
+            <Users size={16} />
+            <span>Customers</span>
+          </button>
+          <button
+            onClick={() => navigate('/orders')}
+            className="flex items-center gap-2 px-4 py-2 bg-brand text-white text-sm font-bold rounded-lg hover:bg-brand-hover transition-all shadow-lg shadow-brand/20"
+          >
+            <PackageOpen size={16} />
+            <span>Orders</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -195,21 +195,21 @@ export const HomePage: React.FC = () => {
       ) : (
         <>
           {/* Stats Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 sm:gap-6 mb-10">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08 }}
-                className="premium-card !p-5 flex items-center gap-4 group hover:border-brand/30 transition-all"
+                className="premium-card !p-5 flex items-center gap-4 min-w-0 group hover:border-brand/30 transition-all"
               >
-                <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
+                <div className={`p-3 rounded-xl shrink-0 ${stat.bg} ${stat.color}`}>
                   <stat.icon size={22} />
                 </div>
-                <div>
-                  <p className="text-slate-400 text-xs font-medium mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white leading-none">{stat.value}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-slate-400 text-xs font-medium mb-1.5 leading-tight">{stat.label}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-none tabular-nums whitespace-nowrap">{stat.value}</p>
                 </div>
               </motion.div>
             ))}

@@ -43,7 +43,23 @@ export interface GeocodeCandidate {
   type: string;
 }
 
+export interface UsersPage {
+  items: User[];
+  total: number;       // rows matching the current search
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: { totalUsers: number; activeUsers: number; deliveryPartners: number };
+}
+
 export const usersApi = {
+  /** One server-side page (never loads the whole collection). */
+  getUsersPage: async (params: { page: number; limit: number; search?: string }): Promise<UsersPage> => {
+    const q = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+    if (params.search?.trim()) q.set('search', params.search.trim());
+    return apiClient(`/users?${q.toString()}`);
+  },
+
   getUsers: async (): Promise<User[]> => {
     return apiClient('/users');
   },

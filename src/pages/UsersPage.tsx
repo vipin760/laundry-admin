@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import { useUsersStore } from '../store/useUsersStore';
 import { UserTableRow } from '../components/UserTableRow';
 import { UserAddressModal } from '../components/UserAddressModal';
@@ -11,39 +12,48 @@ export const UsersPage: React.FC = () => {
     users, isLoading, error, fetchUsers, blockUser, unblockUser, changeRole,
     addressModalUserId, openAddressModal,
     editUserId, openEditUser,
+    page, limit, total, totalPages, stats,
   } = useUsersStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const firstRun = useRef(true);
 
+  // Initial load + debounced server-side search (always back to page 1).
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    const delay = firstRun.current ? 0 : 350;
+    firstRun.current = false;
+    const t = setTimeout(() => { void fetchUsers({ page: 1, search: searchTerm }); }, delay);
+    return () => clearTimeout(t);
+  }, [searchTerm, fetchUsers]);
 
-  const q = searchTerm.toLowerCase().trim();
-  const filteredUsers = users.filter(user => {
-    if (!q) return true;
-    const name   = (user.name         ?? '').toLowerCase();
-    const email  = (user.email        ?? '').toLowerCase();
-    const mobile = (user.mobileNumber ?? '').toLowerCase();
-    return name.includes(q) || email.includes(q) || mobile.includes(q);
-  });
+  const goTo = (p: number) => { void fetchUsers({ page: Math.min(Math.max(1, p), totalPages) }); };
 
   const addressModalUser = users.find((u) => u._id === addressModalUserId);
   const editModalUser = users.find((u) => u._id === editUserId);
 
-  const totalUsers       = users.length;
-  const activeUsers      = users.filter(u => !u.isDeleted && u.accountStatus !== 'DELETED' && u.isActive !== false).length;
-  const deliveryPartners = users.filter(u => u.role === 'delivery_partner').length;
 
   return (
     <AdminLayout>
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-        <div>
+      {/* Header: title · counts · search (counts drop to their own row on small screens) */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 mb-8">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">User Management</h1>
           <p className="text-slate-500 text-sm mt-1 font-medium">View, search and manage all registered users</p>
         </div>
 
-        <div className="relative group w-full md:w-80">
+        <div className="order-3 xl:order-2 w-full xl:w-auto grid grid-cols-3 gap-2 sm:gap-3">
+          {[
+            { label: 'Total Users',       value: stats.totalUsers,       color: 'text-brand',       bg: 'bg-blue-50 dark:bg-blue-500/10' },
+            { label: 'Active',            value: stats.activeUsers,      color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
+            { label: 'Delivery Partners', value: stats.deliveryPartners, color: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-500/10' },
+          ].map(s => (
+            <div key={s.label} className={`${s.bg} rounded-xl px-3 sm:px-4 py-2 min-w-0 xl:min-w-[110px] text-center xl:text-left`}>
+              <p className={`text-lg sm:text-xl font-black leading-tight tabular-nums ${s.color}`}>{s.value}</p>
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-500 truncate">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="order-2 xl:order-3 relative group w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-brand transition-colors" />
           <input
             type="text"
@@ -53,20 +63,6 @@ export const UsersPage: React.FC = () => {
             className="pl-10 pr-4 py-2.5 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/5 rounded-xl w-full focus:ring-1 focus:ring-brand focus:outline-none transition-all shadow-sm text-sm"
           />
         </div>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Total Users',       value: totalUsers,       color: 'text-brand',       bg: 'bg-blue-50 dark:bg-blue-500/10' },
-          { label: 'Active',            value: activeUsers,      color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
-          { label: 'Delivery Partners', value: deliveryPartners, color: 'text-violet-600',  bg: 'bg-violet-50 dark:bg-violet-500/10' },
-        ].map(s => (
-          <div key={s.label} className={`${s.bg} rounded-2xl px-5 py-4`}>
-            <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">{s.label}</p>
-          </div>
-        ))}
       </div>
 
       {error && (
@@ -99,7 +95,7 @@ export const UsersPage: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center gap-4 text-slate-400">
@@ -111,7 +107,7 @@ export const UsersPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
+                users.map((user) => (
                   <UserTableRow
                     key={user._id}
                     user={user}
@@ -127,10 +123,9 @@ export const UsersPage: React.FC = () => {
           </table>
         </div>
 
-        {!isLoading && filteredUsers.length > 0 && (
-          <div className="px-6 py-3 border-t border-slate-100 dark:border-white/5 text-xs text-slate-400 font-medium">
-            Showing {filteredUsers.length} of {totalUsers} users
-          </div>
+        {!isLoading && (
+          <TableFooter page={page} totalPages={totalPages} total={total} limit={limit} itemLabel="users"
+            onPage={goTo} onLimit={(n) => void fetchUsers({ page: 1, limit: n })} />
         )}
       </div>
 

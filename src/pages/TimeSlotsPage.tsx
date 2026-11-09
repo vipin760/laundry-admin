@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import { timeSlotsApi } from '../api/timeSlotsApi';
 import { ServiceAvailabilityCard } from '../components/ServiceAvailabilityCard';
 import type { SlotStat, CreateSlotPayload, SlotType } from '../api/timeSlotsApi';
@@ -137,6 +138,11 @@ export const TimeSlotsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statsDate, setStatsDate] = useState(todayStr());
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [coveredDays, setCoveredDays] = useState<string[]>([]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -145,20 +151,27 @@ export const TimeSlotsPage: React.FC = () => {
   // Deactivation confirmation
   const [deactivatingSlot, setDeactivatingSlot] = useState<SlotStat | null>(null);
 
-  const fetchSlots = useCallback(async (date = statsDate) => {
-    setLoading(true);
+  const fetchSlots = useCallback(async (date = statsDate, p = page, l = limit, silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
-      const data = await timeSlotsApi.stats(date);
-      setSlots(data);
+      const data = await timeSlotsApi.statsPage(date, p, l);
+      setSlots(data.items);
+      setTotal(data.total);
+      setTotalPages(Math.max(1, data.totalPages));
+      setCoveredDays(data.coveredDays);
+      if (data.page !== p) setPage(data.page);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load slots');
     } finally {
       setLoading(false);
     }
-  }, [statsDate]);
+  }, [statsDate, page, limit]);
 
-  useEffect(() => { fetchSlots(statsDate); }, [statsDate, fetchSlots]);
+  useEffect(() => { fetchSlots(statsDate, page, limit); }, [statsDate, page, limit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Changing the viewed date keeps the same page; changing page size restarts at 1.
+  const changeLimit = (n: number) => { setPage(1); setLimit(n); };
 
   const openCreate = () => {
     setEditingId(null);
@@ -202,7 +215,7 @@ export const TimeSlotsPage: React.FC = () => {
         await timeSlotsApi.create(payload);
       }
       setShowModal(false);
-      fetchSlots(statsDate);
+      fetchSlots(statsDate, page, limit, true);
     } catch (e: any) {
       setError(e.message ?? 'Save failed');
     } finally {
@@ -226,7 +239,7 @@ export const TimeSlotsPage: React.FC = () => {
     setDeactivatingSlot(null);
     try {
       await timeSlotsApi.toggle(id, isActive, graceMinutes);
-      fetchSlots(statsDate);
+      fetchSlots(statsDate, page, limit, true);
     } catch (e: any) {
       setError(e.message ?? 'Toggle failed');
     }
@@ -236,7 +249,7 @@ export const TimeSlotsPage: React.FC = () => {
     if (!confirm('Delete this time slot permanently?')) return;
     try {
       await timeSlotsApi.remove(id);
-      fetchSlots(statsDate);
+      fetchSlots(statsDate, page, limit, true);
     } catch (e: any) {
       setError(e.message ?? 'Delete failed');
     }
@@ -254,9 +267,7 @@ export const TimeSlotsPage: React.FC = () => {
   const now = currentHHMM();
   const isViewingToday = statsDate === todayStr();
   const viewedDayKey = dayKeyForDateStr(statsDate);
-  const hasCoverageForViewedDay = slots.some(
-    (s) => s.isActive && s.daysAvailable.includes(viewedDayKey),
-  );
+  const hasCoverageForViewedDay = coveredDays.includes(viewedDayKey);
 
   return (
     <AdminLayout>
@@ -311,7 +322,7 @@ export const TimeSlotsPage: React.FC = () => {
         </div>
 
         {/* Warn when no active slot covers the viewed day — users fall back to the generic "Full Day" slot on that day */}
-        {!loading && slots.length > 0 && !hasCoverageForViewedDay && (
+        {!loading && total > 0 && !hasCoverageForViewedDay && (
           <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl p-4">
             <AlertTriangle size={18} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
             <p className="text-sm text-red-700 dark:text-red-400">
@@ -327,7 +338,7 @@ export const TimeSlotsPage: React.FC = () => {
           <div className="flex items-center justify-center py-20 text-slate-400">
             <Loader2 size={28} className="animate-spin" />
           </div>
-        ) : slots.length === 0 ? (
+        ) : total === 0 ? (
           <div className="text-center py-20 text-slate-400">
             <Clock size={40} className="mx-auto mb-3 opacity-30" />
             <p className="font-semibold">No slots yet</p>
@@ -474,6 +485,9 @@ export const TimeSlotsPage: React.FC = () => {
                 })}
               </tbody>
             </table>
+
+            <TableFooter page={page} totalPages={totalPages} total={total} limit={limit} itemLabel="slots"
+              onPage={(p) => setPage(Math.min(Math.max(1, p), totalPages))} onLimit={changeLimit} />
           </div>
         )}
       </div>

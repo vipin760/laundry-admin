@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import {
   Ticket,
   CheckCircle2,
@@ -297,30 +298,9 @@ export const CouponsListPage: React.FC = () => {
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">{total} coupon(s)</span>
-          <div className="flex justify-center gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40"
-            >
-              Prev
-            </button>
-            <span className="px-3 py-1 text-sm">
-              {page} / {totalPages}
-            </span>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
+          {!loading && (
+            <TableFooter page={page} totalPages={totalPages} total={total} limit={20} itemLabel="coupons" onPage={setPage} />
+          )}
         </div>
       </div>
     </AdminLayout>

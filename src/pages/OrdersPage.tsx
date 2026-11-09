@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 
 import { useOrdersStore } from '../store/useOrdersStore';
 
@@ -8,7 +9,7 @@ import { useOrderSiren } from '../context/OrderSirenContext';
 
 import {
 
-  Search, Loader2, PackageX, ChevronLeft, ChevronRight,
+  Search, Loader2, PackageX,
 
   X, Truck, Package, CheckCircle2, Clock, AlertCircle,
 
@@ -1829,27 +1830,7 @@ export const OrdersPage: React.FC = () => {
 
 
 
-        <div className="ml-auto flex items-center gap-2">
-
-          <span className="text-xs text-slate-400">Rows:</span>
-
-          <select
-
-            value={limit}
-
-            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-
-            className="text-xs px-2 py-1.5 border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1A1A1A] text-slate-700 dark:text-slate-200 focus:outline-none"
-
-          >
-
-            {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
-
-          </select>
-
-        </div>
-
-      </div>
+</div>
 
 
 
@@ -2096,82 +2077,12 @@ export const OrdersPage: React.FC = () => {
 
 
         {/* Pagination */}
-
-        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 dark:border-white/5">
-
-          <p className="text-xs text-slate-400">
-
-            Page {page} of {totalPages || 1} · {total} total
-
-          </p>
-
-          <div className="flex items-center gap-1">
-
-            <button onClick={() => setPage(1)} disabled={page === 1}
-
-              className="px-2 py-1.5 text-xs rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors font-semibold">
-
-              «
-
-            </button>
-
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-
-              className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
-
-              <ChevronLeft size={16}/>
-
-            </button>
-
-            {/* Page numbers */}
-
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-
-              const start = Math.max(1, Math.min(page - 2, totalPages - 4));
-
-              const p = start + i;
-
-              if (p > totalPages) return null;
-
-              return (
-
-                <button key={p} onClick={() => setPage(p)}
-
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-
-                    p === page ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-600'
-
-                  }`}>
-
-                  {p}
-
-                </button>
-
-              );
-
-            })}
-
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-
-              className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors">
-
-              <ChevronRight size={16}/>
-
-            </button>
-
-            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
-
-              className="px-2 py-1.5 text-xs rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors font-semibold">
-
-              »
-
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
+        <TableFooter page={page} totalPages={totalPages || 1} total={total} limit={limit} itemLabel="orders"
+          disabled={isLoading}
+          onPage={(p) => setPage(Math.min(Math.max(1, p), totalPages || 1))}
+          onLimit={(n) => { setLimit(n); setPage(1); }}
+          limitOptions={PAGE_SIZES} />
+</div>
 
 
 

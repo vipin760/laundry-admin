@@ -14,6 +14,8 @@ interface ServicesState {
   updateService: (id: string, payload: UpdateServicePayload) => Promise<void>;
 }
 
+let lastParams: GetServicesParams = {};
+
 export const useServicesStore = create<ServicesState>((set) => ({
   services: [],
   total: 0,
@@ -21,6 +23,7 @@ export const useServicesStore = create<ServicesState>((set) => ({
   error: null,
 
   fetchServices: async (params) => {
+    if (params) lastParams = params;
     set({ isLoading: true, error: null });
     try {
       const response = await servicesApi.getServices(params);
@@ -38,8 +41,8 @@ export const useServicesStore = create<ServicesState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await servicesApi.createService(payload);
-      // Re-fetch existing after add to reflect changes
-      const response = await servicesApi.getServices({ page: 1, limit: 10 });
+      // Re-fetch the SAME page/search/size the admin is looking at
+      const response = await servicesApi.getServices(lastParams);
       set({
         services: response.data,
         total: response.total || response.data.length,

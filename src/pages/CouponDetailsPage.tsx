@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminLayout } from '../layouts/AdminLayout';
+import { TableFooter } from '../components/TableFooter';
 import {
   ArrowLeft,
   Loader2,
@@ -424,28 +425,7 @@ export const CouponDetailsPage: React.FC = () => {
               )}
             </tbody>
           </table>
-          <div className="flex items-center justify-between p-3 border-t">
-            <span className="text-xs text-gray-500">{assignedTotal} user(s)</span>
-            <div className="flex gap-2">
-              <button
-                disabled={assignedPage <= 1}
-                onClick={() => setAssignedPage((p) => p - 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <span className="px-3 py-1 text-sm">
-                {assignedPage} / {assignedTotalPages}
-              </span>
-              <button
-                disabled={assignedPage >= assignedTotalPages}
-                onClick={() => setAssignedPage((p) => p + 1)}
-                className="px-3 py-1 border rounded text-sm disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <TableFooter page={assignedPage} totalPages={assignedTotalPages} total={assignedTotal} limit={20} itemLabel="users" onPage={setAssignedPage} />
         </div>
 
         {/* Audit log */}
